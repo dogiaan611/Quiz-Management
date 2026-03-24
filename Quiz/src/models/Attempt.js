@@ -1,51 +1,65 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
+const mongoose = require("mongoose");
 
-const Attempt = sequelize.define(
-    "Attempt",
+const attemptSchema = new mongoose.Schema(
     {
-        id: {
-            type: DataTypes.INTEGER,
-            primaryKey: true,
-            autoIncrement: true,
-        },
         quiz_id: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Quiz",
+            required: true,
         },
         user_id: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
         },
         started_at: {
-            type: DataTypes.DATE,
-            defaultValue: DataTypes.NOW,
+            type: Date,
+            default: Date.now,
         },
         submitted_at: {
-            type: DataTypes.DATE,
-            allowNull: true,
+            type: Date,
+            default: null,
         },
         score: {
-            type: DataTypes.FLOAT,
-            allowNull: true,
+            type: Number,
+            default: null,
         },
         total_questions: {
-            type: DataTypes.INTEGER,
-            defaultValue: 0,
+            type: Number,
+            default: 0,
         },
         correct_answers: {
-            type: DataTypes.INTEGER,
-            defaultValue: 0,
+            type: Number,
+            default: 0,
         },
         status: {
-            type: DataTypes.ENUM("in_progress", "submitted", "timeout"),
-            defaultValue: "in_progress",
+            type: String,
+            enum: ["in_progress", "submitted", "timeout"],
+            default: "in_progress",
         },
+        // Mảng các câu trả lời thay thế cho bảng trung gian AttemptAnswer
+        answers: [
+            {
+                question_id: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "Question",
+                    required: true,
+                },
+                answer_id: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "Answer",
+                    default: null, // null nếu user bỏ qua câu hỏi
+                },
+                is_correct: {
+                    type: Boolean,
+                    default: false,
+                },
+            }
+        ],
     },
     {
-        tableName: "attempts",
         timestamps: false,
     }
 );
 
-module.exports = Attempt;
+module.exports = mongoose.model("Attempt", attemptSchema);

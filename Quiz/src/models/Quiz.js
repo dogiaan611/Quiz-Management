@@ -1,56 +1,58 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
+const mongoose = require("mongoose");
 
-const Quiz = sequelize.define(
-    "Quiz",
+const quizSchema = new mongoose.Schema(
     {
-        id: {
-            type: DataTypes.INTEGER,
-            primaryKey: true,
-            autoIncrement: true,
-        },
         title: {
-            type: DataTypes.STRING(200),
-            allowNull: false,
+            type: String,
+            required: true,
+            maxLength: 200,
         },
         description: {
-            type: DataTypes.TEXT,
-            allowNull: true,
+            type: String,
+            default: null,
         },
         created_by: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
         },
         access_code: {
-            type: DataTypes.STRING(10),
-            allowNull: false,
+            type: String,
+            required: true,
             unique: true,
+            maxLength: 10,
         },
         time_limit: {
-            type: DataTypes.INTEGER, // phút, null = không giới hạn
-            allowNull: true,
+            type: Number, // phút, null = không giới hạn
+            default: null,
         },
         max_attempts: {
-            type: DataTypes.INTEGER, // 0 = không giới hạn
-            defaultValue: 0,
+            type: Number, // 0 = không giới hạn
+            default: 0,
         },
         start_time: {
-            type: DataTypes.DATE,
-            allowNull: true,
+            type: Date,
+            default: null,
         },
         end_time: {
-            type: DataTypes.DATE,
-            allowNull: true,
+            type: Date,
+            default: null,
         },
         is_published: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false,
+            type: Boolean,
+            default: false,
         },
+        // Mảng các Question thay thế cho bảng trung gian QuizQuestion
+        questions: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "Question",
+            }
+        ],
     },
     {
-        tableName: "quizzes",
         timestamps: true,
     }
 );
 
-module.exports = Quiz;
+module.exports = mongoose.model("Quiz", quizSchema);

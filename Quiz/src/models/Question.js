@@ -1,35 +1,29 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
+const mongoose = require("mongoose");
 
-const Question = sequelize.define(
-    "Question",
+const questionSchema = new mongoose.Schema(
     {
-        id: {
-            type: DataTypes.INTEGER,
-            primaryKey: true,
-            autoIncrement: true,
-        },
         content: {
-            type: DataTypes.TEXT,
-            allowNull: false,
+            type: String,
+            required: true,
         },
         type: {
-            type: DataTypes.ENUM("multiple_choice", "true_false"),
-            defaultValue: "multiple_choice",
+            type: String,
+            enum: ["multiple_choice", "true_false"],
+            default: "multiple_choice",
         },
         image_url: {
-            type: DataTypes.STRING(255),
-            allowNull: true,
+            type: String,
+            default: null,
         },
         created_by: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
         },
     },
     {
-        tableName: "questions",
         timestamps: true,
     }
 );
 
-module.exports = Question;
+module.exports = mongoose.model("Question", questionSchema);
