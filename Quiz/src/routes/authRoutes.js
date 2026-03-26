@@ -1,6 +1,6 @@
 const express = require("express");
 const { body } = require("express-validator");
-const { register } = require("../controllers/authController");
+const { register, login } = require("../controllers/authController");
 
 const router = express.Router();
 
@@ -21,6 +21,20 @@ router.post(
             .isLength({ min: 6 }).withMessage("Password phải có ít nhất 6 ký tự"),
     ],
     register
+);
+
+router.post(
+    "/login",
+    [
+        body("email")
+            .trim()
+            .notEmpty().withMessage("Email không được để trống")
+            .isEmail().withMessage("Email không hợp lệ")
+            .normalizeEmail(),
+        body("password")
+            .notEmpty().withMessage("Password không được để trống"),
+    ],
+    login
 );
 
 module.exports = router;
