@@ -11,6 +11,9 @@ app.use(express.json());
 // Kiểm tra và kết nối MongoDB
 connectDB();
 
+// Routes
+app.use("/api/auth", require("./src/routes/authRoutes"));
+
 // Health check
 app.get("/", (req, res) => {
   res.json({ message: "Quiz Management API is running 🚀" });
