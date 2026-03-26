@@ -1,0 +1,43 @@
+const { validationResult } = require("express-validator");
+const { User } = require("../models");
+
+const register = async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { username, email, password } = req.body;
+
+    try {
+        const existingUser = await User.findOne({
+            $or: [{ email }, { username }],
+        });
+
+        if (existingUser) {
+            const field = existingUser.email === email ? "Email" : "Username";
+            return res.status(409).json({ message: `${field} đã được sử dụng` });
+        }
+
+        const user = await User.create({
+            username,
+            email,
+            password,
+        });
+
+        return res.status(201).json({
+            message: "Đăng ký thành công",
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+            },
+        });
+    } catch (error) {
+        console.error("Register error:", error);
+        return res.status(500).json({ message: "Lỗi server" });
+    }
+};
+
+module.exports = { register };
