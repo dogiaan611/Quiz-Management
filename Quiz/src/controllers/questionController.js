@@ -5,15 +5,18 @@ const createManualQuestion = async (req, res) => {
     try {
         const { content, type, image_url, quiz_id, created_by, answers } = req.body;
 
-        // 1. Kiểm tra các trường bắt buộc
-        if (!content || !quiz_id || !created_by || !answers || !Array.isArray(answers) || answers.length === 0) {
-            return res.status(400).json({ message: "Vui lòng cung cấp đầy đủ thông tin: content, quiz_id, created_by, answers." });
+        // 1. Kiểm tra các trường bắt buộc (Không bắt buộc quiz_id nữa)
+        if (!content || !created_by || !answers || !Array.isArray(answers) || answers.length === 0) {
+            return res.status(400).json({ message: "Vui lòng cung cấp đầy đủ thông tin: content, created_by, answers." });
         }
 
-        // 2. Kiểm tra xem Quiz có tồn tại không
-        const quiz = await Quiz.findById(quiz_id);
-        if (!quiz) {
-            return res.status(404).json({ message: "Không tìm thấy Quiz này." });
+        // 2. Kiểm tra xem Quiz có tồn tại không (nếu có truyền quiz_id)
+        let quiz = null;
+        if (quiz_id) {
+            quiz = await Quiz.findById(quiz_id);
+            if (!quiz) {
+                return res.status(404).json({ message: "Không tìm thấy Quiz này." });
+            }
         }
 
         // 3. Tạo Question mới
@@ -33,14 +36,17 @@ const createManualQuestion = async (req, res) => {
 
         const createdAnswers = await Answer.insertMany(answersToInsert);
 
-        // 5. Cập nhật mảng questions của Quiz
-        quiz.questions.push(newQuestion._id);
-        await quiz.save();
+        // 5. Cập nhật mảng questions của Quiz (nếu có quiz_id)
+        if (quiz) {
+            quiz.questions.push(newQuestion._id);
+            await quiz.save();
+        }
 
         return res.status(201).json({
-            message: "Tạo câu hỏi thủ công thành công",
+            message: quiz ? "Tạo câu hỏi và gán vào Quiz thành công" : "Tạo câu hỏi thành công (Lưu vào kho)",
             question: newQuestion,
-            answers: createdAnswers
+            answers: createdAnswers,
+            quiz_id: quiz_id || null
         });
 
     } catch (error) {
@@ -52,6 +58,7 @@ const createManualQuestion = async (req, res) => {
         });
     }
 };
+
 
 /**
  * Lấy danh sách câu hỏi của một Quiz (Optional feature)
