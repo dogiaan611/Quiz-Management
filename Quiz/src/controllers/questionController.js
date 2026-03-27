@@ -74,7 +74,66 @@ const getQuizQuestions = async (req, res) => {
     }
 };
 
+/**
+ * API Upload file Excel (.xlsx)
+ */
+const importQuestionsFromFile = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: "Vui lòng chọn file để tải lên." });
+        }
+
+        return res.status(200).json({
+            message: "Tải file lên thành công và đã lưu file tạm.",
+            file: {
+                filename: req.file.filename,
+                originalName: req.file.originalname,
+                path: req.file.path,
+                size: req.file.size
+            }
+        });
+    } catch (error) {
+        console.error("❌ ERROR UPLOADING FILE:", error);
+        return res.status(500).json({ message: "Lỗi server khi upload file.", error: error.message });
+    }
+};
+
+/**
+ * API Tải file Excel mẫu (.xlsx)
+ */
+const downloadTemplate = (req, res) => {
+    const xlsx = require("xlsx");
+    try {
+        const data = [
+            {
+                question: "Node.js là gì?",
+                A: "Môi trường runtime JavaScript",
+                B: "Một framework PHP",
+                C: "Một hệ điều hành",
+                D: "Một trình duyệt",
+                correctAnswer: "A"
+            }
+        ];
+
+        const worksheet = xlsx.utils.json_to_sheet(data);
+        const workbook = xlsx.utils.book_new();
+        xlsx.utils.book_append_sheet(workbook, worksheet, "Template");
+
+        const buffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+        res.setHeader("Content-Disposition", "attachment; filename=mau-import-cau-hoi.xlsx");
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        
+        return res.send(buffer);
+    } catch (error) {
+        console.error("❌ ERROR GENERATING TEMPLATE:", error);
+        return res.status(500).json({ message: "Lỗi server khi tạo file mẫu.", error: error.message });
+    }
+};
+
 module.exports = {
     createManualQuestion,
-    getQuizQuestions
+    getQuizQuestions,
+    importQuestionsFromFile,
+    downloadTemplate
 };
