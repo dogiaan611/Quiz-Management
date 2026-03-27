@@ -21,6 +21,18 @@ app.get("/", (req, res) => {
   res.json({ message: "Quiz Management API is running 🚀" });
 });
 
+// Middleware xử lý lỗi tập trung
+app.use((err, req, res, next) => {
+    if (err.code === "INVALID_FILE_TYPE") {
+        return res.status(400).json({ message: err.message });
+    }
+    if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ message: "File quá lớn, tối đa 5MB" });
+    }
+    console.error(err.stack);
+    res.status(500).json({ message: "Lỗi hệ thống", error: err.message });
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
