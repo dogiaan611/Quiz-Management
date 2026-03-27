@@ -3,13 +3,16 @@ const jwt = require("jsonwebtoken");
 const { validationResult } = require("express-validator");
 const { User } = require("../models");
 
+/**
+ * REGISTER
+ */
 const register = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, email, password } = req.body;
+    const { username, email, password, role } = req.body; // 👈 thêm role
 
     try {
         const existingUser = await User.findOne({
@@ -27,6 +30,7 @@ const register = async (req, res) => {
             username,
             email,
             password: hashedPassword,
+            role: role || "student", // 👈 fix đúng
         });
 
         return res.status(201).json({
@@ -44,6 +48,9 @@ const register = async (req, res) => {
     }
 };
 
+/**
+ * LOGIN
+ */
 const login = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -60,13 +67,18 @@ const login = async (req, res) => {
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
+
         if (!isMatch) {
             return res.status(401).json({ message: "Email hoặc mật khẩu không đúng" });
         }
 
         const token = jwt.sign(
-            { id: user._id, email: user.email, role: user.role },
-            process.env.JWT_SECRET,
+            {
+                id: user._id,
+                email: user.email,
+                role: user.role,
+            },
+            process.env.JWT_SECRET || "secret123", // 👈 tránh crash
             { expiresIn: "1d" }
         );
 
