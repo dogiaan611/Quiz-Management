@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const { validationResult } = require("express-validator");
 const { User } = require("../models");
 
@@ -63,8 +64,15 @@ const login = async (req, res) => {
             return res.status(401).json({ message: "Email hoặc mật khẩu không đúng" });
         }
 
+        const token = jwt.sign(
+            { id: user._id, email: user.email, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: "1d" }
+        );
+
         return res.status(200).json({
             message: "Đăng nhập thành công",
+            token,
             user: {
                 id: user._id,
                 username: user.username,
