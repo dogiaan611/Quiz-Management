@@ -19,8 +19,9 @@ const createQuiz = async (req, res) => {
         max_attempts,
         start_time,
         end_time,
-        created_by, // Tạm thời lấy từ body, sau này lấy từ req.user (middleware)
     } = req.body;
+
+    const created_by = req.user.id;
 
     try {
         let access_code;
