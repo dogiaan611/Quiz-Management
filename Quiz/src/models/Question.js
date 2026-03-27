@@ -23,7 +23,16 @@ const questionSchema = new mongoose.Schema(
     },
     {
         timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true },
     }
 );
+
+// Virtual for answers associated with this question
+questionSchema.virtual("answers", {
+    ref: "Answer",
+    localField: "_id",
+    foreignField: "question_id",
+});
 
 module.exports = mongoose.model("Question", questionSchema);
