@@ -2,11 +2,13 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const connectDB = require("./src/config/database");
+const passport = require("./src/config/passport");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(passport.initialize());
 
 // Kiểm tra và kết nối MongoDB
 connectDB();
