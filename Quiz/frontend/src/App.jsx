@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import ProtectedRoute from './components/ProtectedRoute';
 import useAuthStore from './store/useAuthStore';
 
@@ -15,7 +16,7 @@ const Dashboard = () => {
           <h1 className="text-3xl font-bold bg-linear-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
             Quiz Management
           </h1>
-          <button 
+          <button
             onClick={() => {
               localStorage.removeItem('token');
               localStorage.removeItem('user');
@@ -32,7 +33,7 @@ const Dashboard = () => {
           <p className="text-gray-400">
             Đây là trang Dashboard của bạn. Bạn đã đăng nhập thành công vào hệ thống quản lý Quiz.
           </p>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
             <div className="p-6 bg-gray-700/50 rounded-xl border border-gray-600 hover:border-blue-500/50 transition-colors">
               <h3 className="font-bold mb-2">Thông tin tài khoản</h3>
@@ -51,14 +52,15 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         {/* Protected Routes */}
-        <Route 
-          path="/" 
+        <Route
+          path="/"
           element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
-          } 
+          }
         />
         {/* Redirect unknown routes to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
