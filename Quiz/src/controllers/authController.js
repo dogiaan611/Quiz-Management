@@ -122,20 +122,20 @@ const googleCallback = (req, res, next) => {
                 { expiresIn: "1d" }
             );
 
-            return res.status(200).json({
-                message: "Đăng nhập Google thành công",
-                token,
-                user: {
-                    id: user._id,
-                    username: user.username,
-                    email: user.email,
-                    role: user.role,
-                    avatar: user.avatar,
-                },
-            });
+            const userDataParams = encodeURIComponent(JSON.stringify({
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                avatar: user.avatar,
+            }));
+
+            const frontendURL = process.env.FRONTEND_URL || "http://localhost:5173";
+            return res.redirect(`${frontendURL}/auth/success?token=${token}&user=${userDataParams}`);
         } catch (error) {
             console.error("Google callback error:", error);
-            return res.status(500).json({ message: "Lỗi server" });
+            const frontendURL = process.env.FRONTEND_URL || "http://localhost:5173";
+            return res.redirect(`${frontendURL}/login?error=google_auth_failed`);
         }
     })(req, res, next);
 };
