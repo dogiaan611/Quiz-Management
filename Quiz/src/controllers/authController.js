@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { validationResult } = require("express-validator");
+const passport = require("passport");
 const { User } = require("../models");
 
 const register = async (req, res) => {
@@ -86,4 +87,57 @@ const login = async (req, res) => {
     }
 };
 
-module.exports = { register, login };
+const googleAuth = passport.authenticate("google", {
+    scope: ["profile", "email"],
+});
+
+const googleCallback = (req, res, next) => {
+    passport.authenticate("google", { session: false }, async (err, userData) => {
+        if (err || !userData) {
+            return res.status(401).json({ message: "Đăng nhập Google thất bại" });
+        }
+
+        try {
+            let user = await User.findOne({ email: userData.email });
+
+            if (!user) {
+                user = await User.create({
+                    username: userData.username,
+                    email: userData.email,
+                    googleId: userData.googleId,
+                    avatar: userData.avatar,
+                    password: null,
+                });
+            } else if (!user.googleId) {
+                user.googleId = userData.googleId;
+                if (!user.avatar && userData.avatar) {
+                    user.avatar = userData.avatar;
+                }
+                await user.save();
+            }
+
+            const token = jwt.sign(
+                { id: user._id, email: user.email, role: user.role },
+                process.env.JWT_SECRET,
+                { expiresIn: "1d" }
+            );
+
+            return res.status(200).json({
+                message: "Đăng nhập Google thành công",
+                token,
+                user: {
+                    id: user._id,
+                    username: user.username,
+                    email: user.email,
+                    role: user.role,
+                    avatar: user.avatar,
+                },
+            });
+        } catch (error) {
+            console.error("Google callback error:", error);
+            return res.status(500).json({ message: "Lỗi server" });
+        }
+    })(req, res, next);
+};
+
+module.exports = { register, login, googleAuth, googleCallback };
