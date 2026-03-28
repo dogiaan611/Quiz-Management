@@ -13,7 +13,7 @@ connectDB();
 
 // Routes
 app.use("/api/auth", require("./src/routes/authRoutes"));
-app.use("/api", require("./src/routes/quizRoutes"));
+app.use("/api/quizzes", require("./src/routes/quizRoutes"));
 app.use("/api/questions", require("./src/routes/questionRoutes"));
 
 // Health check

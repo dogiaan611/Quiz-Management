@@ -4,20 +4,24 @@ const {
     createQuiz, 
     addQuestionsToQuiz, 
     getAllQuizzes, 
-    getQuizById 
+    getQuizById,
+    checkQuizCode,
+    joinQuiz
 } = require("../controllers/quizController");
+
 const { authenticate, authorize } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
-// Lấy tất cả quiz (Công khai)
-router.get("/quizzes", getAllQuizzes);
+// 🔹 Lấy tất cả quiz
+router.get("/", getAllQuizzes);
 
-// Lấy chi tiết 1 quiz (Công khai hoặc có thể thêm authenticate nếu muốn)
-router.get("/quizzes/:quizId", getQuizById);
+// 🔹 Lấy chi tiết quiz
+router.get("/:quizId", getQuizById);
 
+// 🔹 Tạo quiz
 router.post(
-    "/quizzes",
+    "/",
     authenticate,
     authorize("admin", "teacher"),
     [
@@ -29,11 +33,26 @@ router.post(
     createQuiz
 );
 
+// 🔹 Thêm câu hỏi
 router.post(
-    "/quizzes/:quizId/questions",
+    "/:quizId/questions",
     authenticate,
     authorize("admin", "teacher"),
     addQuestionsToQuiz
+);
+
+// 🔥 CHECK MÃ QUIZ
+router.post(
+    "/check-code",
+    body("code").notEmpty().withMessage("Mã không được để trống"),
+    checkQuizCode
+);
+
+// 🔥 THAM GIA QUIZ
+router.post(
+    "/join",
+    body("code").notEmpty().withMessage("Mã không được để trống"),
+    joinQuiz
 );
 
 module.exports = router;
