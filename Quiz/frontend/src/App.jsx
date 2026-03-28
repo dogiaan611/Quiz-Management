@@ -60,7 +60,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/auth/success" element={<AuthSuccess />} />
-        {/* Protected Routes */}
+
         <Route
           path="/"
           element={
@@ -93,7 +93,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        {/* Redirect unknown routes to home */}
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

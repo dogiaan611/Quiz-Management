@@ -5,7 +5,7 @@ const authService = {
         try {
             const response = await api.post('/auth/login', { email, password });
 
-            // Nếu đăng nhập thành công, lưu token vào localStorage
+
             if (response.data.token) {
                 localStorage.setItem('token', response.data.token);
                 localStorage.setItem('user', JSON.stringify(response.data.user));

@@ -40,16 +40,16 @@ const Login = () => {
     return (
         <div className="min-h-screen bg-[#FDFCFD] flex flex-col font-sans text-[#1A1A1A]">
 
-            {/* Main Content */}
+
             <main className="flex-1 flex items-center justify-center p-4 md:p-8">
                 <div className="max-w-6xl w-full bg-white rounded-3xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col md:flex-row min-h-[700px]">
 
-                    {/* Left Side - Hero Section */}
+
                     <div className="md:w-1/2 relative bg-[#4475FF]">
-                        {/* Background Gradient & Pattern */}
+
                         <div className="absolute inset-0 bg-linear-to-br from-[#4475FF] via-[#2D5BFF] to-[#0041FF] opacity-10"></div>
 
-                        {/* Image overlay */}
+
                         <div className="absolute inset-0 mix-blend-multiply opacity-40">
                             <img
                                 src={loginStudyImg}
@@ -74,13 +74,13 @@ const Login = () => {
                         </div>
                     </div>
 
-                    {/* Right Side - Form Section */}
+
                     <div className="md:w-1/2 p-8 md:p-16 flex flex-col items-center justify-center">
                         <div className="w-full max-w-md">
                             <h2 className="text-3xl md:text-4xl font-black mb-2">Sẵn sàng thử thách?</h2>
                             <p className="text-gray-500 mb-10 font-medium">Đăng nhập tài khoản để bắt đầu các bài kiểm tra của bạn.</p>
 
-                            {/* Social Login */}
+
                             <button
                                 type="button"
                                 onClick={handleGoogleLogin}

@@ -7,7 +7,7 @@ const api = axios.create({
   },
 });
 
-// Thêm token vào header của mỗi request
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -21,12 +21,12 @@ api.interceptors.request.use(
   }
 );
 
-// Xử lý lỗi 401 (Unauthorized)
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Có thể xử lý logout hoặc redirect ở đây
+
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
