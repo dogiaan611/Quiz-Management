@@ -28,6 +28,15 @@ const quizService = {
     }
   },
 
+  getById: async (quizId) => {
+    try {
+      const response = await api.get(`/quizzes/${quizId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   getAll: async () => {
     try {
       const response = await api.get('/quizzes');

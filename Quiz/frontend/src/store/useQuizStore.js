@@ -65,9 +65,11 @@ const useQuizStore = create(
                         category: '',
                         questions: [{ ...initialQuestion, id: crypto.randomUUID() }]
                     });
+                    return quizId;
                 } catch (error) {
                     console.error("Error publishing quiz:", error);
                     alert("Lỗi khi tạo bộ câu hỏi: " + (error.message || "Lỗi server"));
+                    return null;
                 } finally {
                     set({ isSaving: false });
                 }

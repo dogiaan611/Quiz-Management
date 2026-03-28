@@ -3,48 +3,52 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import AuthSuccess from './pages/AuthSuccess';
 import CreateQuiz from './pages/CreateQuiz';
+import QuizDetail from './pages/QuizDetail';
+import QuizList from './pages/QuizList';
 import ProtectedRoute from './components/ProtectedRoute';
+import Navbar from './components/Navbar';
 import useAuthStore from './store/useAuthStore';
 
-// Temporary Dashboard component until we create pages/Dashboard.jsx
 const Dashboard = () => {
   const user = useAuthStore((state) => state.user);
-  const clearAuth = useAuthStore((state) => state.clearAuth);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
-      <div className="max-w-4xl mx-auto">
-        <header className="flex justify-between items-center mb-12">
-          <h1 className="text-3xl font-bold bg-linear-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            Quiz Management
-          </h1>
-          <button
-            onClick={() => {
-              localStorage.removeItem('token');
-              localStorage.removeItem('user');
-              clearAuth();
-            }}
-            className="px-6 py-2 bg-red-500/10 text-red-500 border border-red-500/50 rounded-lg hover:bg-red-500 hover:text-white transition-all"
+    <div className="min-h-screen bg-[#F8FAFC]">
+      <Navbar />
+      <main className="max-w-4xl mx-auto px-8 py-12">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">Chào mừng, {user?.username}! 👋</h2>
+        <p className="text-gray-400 text-sm mb-8">Quản lý bộ câu hỏi của bạn từ đây.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div
+            onClick={() => window.location.href = '/quizzes'}
+            className="bg-white p-6 rounded-2xl border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all cursor-pointer group"
           >
-            Đăng xuất
-          </button>
-        </header>
-
-        <main className="bg-gray-800 rounded-2xl p-8 border border-gray-700 shadow-xl">
-          <h2 className="text-2xl font-semibold mb-4 text-blue-400">Chào mừng, {user?.username}!</h2>
-          <p className="text-gray-400">
-            Đây là trang Dashboard của bạn. Bạn đã đăng nhập thành công vào hệ thống quản lý Quiz.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-            <div className="p-6 bg-gray-700/50 rounded-xl border border-gray-600 hover:border-blue-500/50 transition-colors">
-              <h3 className="font-bold mb-2">Thông tin tài khoản</h3>
-              <p className="text-sm text-gray-400">Email: {user?.email}</p>
-              <p className="text-sm text-gray-400">Vai trò: {user?.role}</p>
+            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-blue-600 transition-all">
+              <span className="text-xl">📚</span>
             </div>
+            <h3 className="font-bold text-gray-800">Thư viện Quiz</h3>
+            <p className="text-sm text-gray-400 mt-1">Xem tất cả bộ câu hỏi đã tạo</p>
           </div>
-        </main>
-      </div>
+          <div
+            onClick={() => window.location.href = '/create-quiz'}
+            className="bg-white p-6 rounded-2xl border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all cursor-pointer group"
+          >
+            <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-green-500 transition-all">
+              <span className="text-xl">✏️</span>
+            </div>
+            <h3 className="font-bold text-gray-800">Tạo Quiz mới</h3>
+            <p className="text-sm text-gray-400 mt-1">Soạn bộ câu hỏi mới từ đầu</p>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-gray-100">
+            <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center mb-4">
+              <span className="text-xl">👤</span>
+            </div>
+            <h3 className="font-bold text-gray-800">Tài khoản</h3>
+            <p className="text-sm text-gray-400 mt-1">Email: {user?.email}</p>
+            <p className="text-sm text-gray-400">Vai trò: {user?.role}</p>
+          </div>
+        </div>
+      </main>
     </div>
   );
 };
@@ -70,6 +74,22 @@ function App() {
           element={
             <ProtectedRoute>
               <CreateQuiz />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/quiz/:quizId"
+          element={
+            <ProtectedRoute>
+              <QuizDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/quizzes"
+          element={
+            <ProtectedRoute>
+              <QuizList />
             </ProtectedRoute>
           }
         />
