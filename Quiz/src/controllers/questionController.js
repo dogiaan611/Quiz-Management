@@ -115,26 +115,44 @@ const importQuestionsFromFile = async (req, res) => {
             failed: 0
         };
 
-        const importedData = []; // Danh sách các Object đã cấu trúc lại
+        const importedData = []; 
 
         for (const row of jsonData) {
             const { question, A, B, C, D, correctAnswer } = row;
 
-            if (!question || !correctAnswer) {
+            // 1. Kiểm tra Question (Bắt buộc)
+            if (!question || String(question).trim().length === 0) {
                 stats.failed++;
                 continue;
             }
 
-            // --- ĐÂY LÀ PHẦN BẠN YÊU CẦU: Chuyển thành Object sạch ---
+            // 2. Kiểm tra Options (Phải có ít nhất 2 options trở lên)
+            const availableOptions = [
+                { key: "A", content: A },
+                { key: "B", content: B },
+                { key: "C", content: C },
+                { key: "D", content: D }
+            ].filter(opt => opt.content && String(opt.content).trim().length > 0);
+
+            if (availableOptions.length < 2) {
+                stats.failed++;
+                continue;
+            }
+
+            // 3. Kiểm tra đáp án đúng (Bắt buộc và phải nằm trong các Key hiện có)
+            const validCorrectAnswer = String(correctAnswer).trim().toUpperCase();
+            const isAnswerExists = availableOptions.some(opt => opt.key === validCorrectAnswer);
+
+            if (!correctAnswer || !isAnswerExists) {
+                stats.failed++;
+                continue;
+            }
+
+            // --- ĐÃ VƯỢT QUA KIỂM TRA -> Chuyển thành Object sạch ---
             const questionObject = {
-                question: question,
-                options: [
-                    { key: "A", content: A },
-                    { key: "B", content: B },
-                    { key: "C", content: C },
-                    { key: "D", content: D }
-                ].filter(opt => opt.content), // Chỉ lấy những option có dữ liệu
-                correctAnswer: String(correctAnswer).trim().toUpperCase()
+                question: String(question).trim(),
+                options: availableOptions,
+                correctAnswer: validCorrectAnswer
             };
 
             // 1. Lưu Question vào Database
