@@ -2,6 +2,8 @@ const express = require("express");
 const { createManualQuestion, getQuizQuestions, importQuestionsFromFile, downloadTemplate } = require("../controllers/questionController");
 const upload = require("../middlewares/uploadMiddleware");
 
+const { authenticate } = require("../middlewares/authMiddleware");
+
 const router = express.Router();
 
 /**
@@ -9,14 +11,14 @@ const router = express.Router();
  * @desc Tạo câu hỏi thủ công cho một Quiz
  * @access Private (Teacher/Admin)
  */
-router.post("/manual", createManualQuestion);
+router.post("/manual", authenticate, createManualQuestion);
 
 /**
  * @route GET /api/questions/quiz/:quizId
- * @desc Lấy danh sách câu hỏi của một Quiz
- * @access Private/Public
+ * @desc Lấy danh sách câu hỏi của một Quiz (dành phục vụ làm bài, không có đáp án đúng nếu là SV)
+ * @access Private
  */
-router.get("/quiz/:quizId", getQuizQuestions);
+router.get("/quiz/:quizId", authenticate, getQuizQuestions);
 
 /**
  * @route POST /api/questions/import
