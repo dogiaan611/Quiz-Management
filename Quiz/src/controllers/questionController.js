@@ -94,6 +94,16 @@ const getQuizQuestions = async (req, res) => {
 
         let questions;
         
+        // Hàm xáo trộn mảng (Fisher-Yates)
+        const shuffleArray = (array) => {
+            const newArr = [...array];
+            for (let i = newArr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+            }
+            return newArr;
+        };
+
         // Nếu là GV hoặc admin muốn xem full (có đáp án đúng và không shuffle)
         if (isOwner && req.query.showCorrect === 'true') {
             const quizFull = await Quiz.findById(quizId)
@@ -103,15 +113,17 @@ const getQuizQuestions = async (req, res) => {
                 });
             questions = quizFull.questions;
         } else {
-            // Đối với SV làm bài: lấy data đã populate ở trên
-            questions = quiz.questions.map(q => {
+            // Đối với SV làm bài: Xáo trộn cả CÂU HỎI và CÂU TRẢ LỜI
+            const rawQuestions = quiz.questions.map(q => {
                 const questionObj = q.toObject();
-                // Shuffle đáp án nếu là SV làm bài
                 if (questionObj.answers && Array.isArray(questionObj.answers)) {
-                    questionObj.answers = questionObj.answers.sort(() => Math.random() - 0.5);
+                    questionObj.answers = shuffleArray(questionObj.answers);
                 }
                 return questionObj;
             });
+            
+            // Random hóa thứ tự câu hỏi (Sprints 2 task: Tạo logic câu hỏi random)
+            questions = shuffleArray(rawQuestions);
         }
 
         return res.status(200).json({
