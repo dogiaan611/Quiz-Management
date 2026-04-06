@@ -115,60 +115,63 @@ const importQuestionsFromFile = async (req, res) => {
             failed: 0
         };
 
-        const processedQuestions = [];
+        const importedData = []; // Danh sách các Object đã cấu trúc lại
 
         for (const row of jsonData) {
             const { question, A, B, C, D, correctAnswer } = row;
 
-            // Kiểm tra tối thiểu phải có nội dung câu hỏi và đáp án đúng
             if (!question || !correctAnswer) {
                 stats.failed++;
                 continue;
             }
 
-            // 1. Tạo Question mới
+            // --- ĐÂY LÀ PHẦN BẠN YÊU CẦU: Chuyển thành Object sạch ---
+            const questionObject = {
+                question: question,
+                options: [
+                    { key: "A", content: A },
+                    { key: "B", content: B },
+                    { key: "C", content: C },
+                    { key: "D", content: D }
+                ].filter(opt => opt.content), // Chỉ lấy những option có dữ liệu
+                correctAnswer: String(correctAnswer).trim().toUpperCase()
+            };
+
+            // 1. Lưu Question vào Database
             const newQuestion = await Question.create({
-                content: question,
-                type: "multiple_choice", // Mặc định từ Excel là trắc nghiệm
+                content: questionObject.question,
+                type: "multiple_choice",
                 created_by: created_by
             });
 
-            // 2. Chuyển đổi các cột A, B, C, D thành bản ghi Answer
-            const answersToInsert = [
-                { content: A, key: "A" },
-                { content: B, key: "B" },
-                { content: C, key: "C" },
-                { content: D, key: "D" }
-            ]
-            .filter(ans => ans.content) // Chỉ lấy các đáp án có nội dung
-            .map(ans => ({
+            // 2. Lưu Answer vào Database dựa trên mảng options đã gộp
+            const answersToInsert = questionObject.options.map(opt => ({
                 question_id: newQuestion._id,
-                content: ans.content,
-                is_correct: String(correctAnswer).trim().toUpperCase() === ans.key
+                content: opt.content,
+                is_correct: opt.key === questionObject.correctAnswer
             }));
 
             await Answer.insertMany(answersToInsert);
 
-            // 3. Nếu có quiz_id, hãy thêm câu hỏi này vào Quiz đó
+            // 3. Gán vào Quiz (nếu có)
             if (quiz_id && mongoose.Types.ObjectId.isValid(quiz_id)) {
                 await Quiz.findByIdAndUpdate(quiz_id, {
                     $push: { questions: newQuestion._id }
                 });
             }
 
-            processedQuestions.push(newQuestion._id);
+            importedData.push(questionObject);
             stats.success++;
         }
 
-        // Xóa file sau khi đã xử lý xong để giải phóng bộ nhớ tạm
         if (fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
         }
 
         return res.status(201).json({
-            message: `Xử lý file hoàn tất. Thành công: ${stats.success}, Thất bại: ${stats.failed}`,
+            message: "Đã chuyển đổi Excel thành Object và lưu thành công!",
             stats,
-            quiz_id: quiz_id || null
+            data: importedData // Trả về danh sách Object question, options, correctAnswer
         });
 
     } catch (error) {
