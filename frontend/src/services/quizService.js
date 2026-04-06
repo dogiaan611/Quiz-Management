@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const API = "http://localhost:3000/api/quizzes";
-const QUESTIONS_API = "http://localhost:3000/api/questions";
+const API = "http://localhost:5000/api/quizzes";
+const QUESTIONS_API = "http://localhost:5000/api/questions";
 
 export const getQuizzes = () => axios.get(API);
 
