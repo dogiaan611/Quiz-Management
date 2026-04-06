@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
+require("dotenv").config(); // Nạp cấu hình từ file .env trong thư mục hiện tại
 const connectDB = require("./src/config/database");
 const passport = require("./src/config/passport");
 
