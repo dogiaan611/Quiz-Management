@@ -5,6 +5,7 @@ import {
   Plus,
   Trash2,
   ArrowRight,
+  ArrowLeft,
   Save,
   Upload,
   Lightbulb,
@@ -12,45 +13,57 @@ import {
   Settings,
   BookOpen,
   Check,
+  HelpCircle,
 } from 'lucide-react';
-import Navbar from '../components/Navbar';
+import DashboardLayout from '../components/DashboardLayout';
 
 const CATEGORIES = ['Toán học', 'Vật lý', 'Hóa học', 'Sinh học', 'Tiếng Anh', 'CNTT', 'Lịch sử', 'Địa lý'];
 
 const STEPS = [
-  { id: 1, label: 'Thông tin chung' },
-  { id: 2, label: 'Soạn câu hỏi' },
-  { id: 3, label: 'Cài đặt' },
+  { id: 1, label: 'Thông tin chung', icon: BookOpen },
+  { id: 2, label: 'Soạn câu hỏi',    icon: HelpCircle },
+  { id: 3, label: 'Cài đặt & Xuất bản', icon: Settings },
 ];
 
+/* ── Step Indicator ─────────────────────────────────────── */
 const StepIndicator = ({ currentStep }) => (
   <div className="flex items-center justify-center gap-0 mb-10">
-    {STEPS.map((step, idx) => (
-      <React.Fragment key={step.id}>
-        <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-            currentStep === step.id
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
-              : currentStep > step.id
-              ? 'bg-blue-100 text-blue-600'
-              : 'bg-gray-100 text-gray-400'
-          }`}>
-            {currentStep > step.id ? <Check size={14} strokeWidth={3} /> : step.id}
+    {STEPS.map((step, idx) => {
+      const done   = currentStep > step.id;
+      const active = currentStep === step.id;
+      return (
+        <React.Fragment key={step.id}>
+          <div className="flex flex-col items-center gap-1.5">
+            <div
+              className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black transition-all duration-300 ${
+                active
+                  ? 'text-white shadow-lg shadow-blue-300'
+                  : done
+                  ? 'bg-emerald-100 text-emerald-600'
+                  : 'bg-slate-100 text-slate-400'
+              }`}
+              style={active ? { background: 'linear-gradient(135deg, #2563EB, #0EA5E9)' } : {}}
+            >
+              {done ? <Check size={15} strokeWidth={3} /> : step.id}
+            </div>
+            <span className={`text-xs font-bold whitespace-nowrap ${
+              active ? 'text-blue-600' : done ? 'text-emerald-500' : 'text-slate-400'
+            }`}>
+              {step.label}
+            </span>
           </div>
-          <span className={`text-sm font-semibold ${
-            currentStep === step.id ? 'text-blue-600' : currentStep > step.id ? 'text-blue-400' : 'text-gray-400'
-          }`}>
-            {step.label}
-          </span>
-        </div>
-        {idx < STEPS.length - 1 && (
-          <div className={`w-16 h-px mx-3 ${currentStep > step.id ? 'bg-blue-300' : 'bg-gray-200'}`} />
-        )}
-      </React.Fragment>
-    ))}
+          {idx < STEPS.length - 1 && (
+            <div className={`w-20 md:w-28 h-0.5 mx-2 mb-5 rounded-full transition-all duration-300 ${
+              currentStep > step.id ? 'bg-emerald-300' : 'bg-slate-200'
+            }`} />
+          )}
+        </React.Fragment>
+      );
+    })}
   </div>
 );
 
+/* ── Step 1 — Quiz Info ─────────────────────────────────── */
 const Step1 = ({ title, description, updateMeta }) => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [timeLimit, setTimeLimit] = useState(45);
@@ -62,41 +75,45 @@ const Step1 = ({ title, description, updateMeta }) => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-gray-200 p-8 space-y-6">
+    <div className="space-y-5 animate-slide-up">
+      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-7 space-y-6">
+        {/* Title */}
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Tên quiz</label>
+          <label className="text-sm font-bold text-slate-700">Tên Quiz <span className="text-red-400">*</span></label>
           <input
             type="text"
-            placeholder="Ví dụ: Kiểm tra Giải tích chương 1"
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-800 placeholder:text-gray-300 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
+            placeholder="VD: Kiểm tra Giải tích chương 1"
+            className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-300 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all text-sm"
             value={title}
             onChange={(e) => updateMeta('title', e.target.value)}
           />
         </div>
 
+        {/* Description */}
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Mô tả ngắn</label>
+          <label className="text-sm font-bold text-slate-700">Mô tả ngắn</label>
           <textarea
-            placeholder="Tóm tắt nội dung chính..."
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-700 placeholder:text-gray-300 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all resize-none h-28"
+            placeholder="Tóm tắt nội dung chính của bộ câu hỏi..."
+            className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-700 placeholder:text-slate-300 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all resize-none h-28 text-sm"
             value={description}
             onChange={(e) => updateMeta('description', e.target.value)}
           />
         </div>
 
+        {/* Category */}
         <div className="space-y-3">
-          <label className="text-sm font-semibold text-gray-700">Danh mục</label>
+          <label className="text-sm font-bold text-slate-700">Danh mục</label>
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
                 onClick={() => handleCategorySelect(cat)}
-                className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all outline-none ${
+                className={`px-4 py-2 rounded-full text-xs font-bold border transition-all outline-none ${
                   selectedCategory === cat
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-100'
-                    : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-500'
+                    ? 'text-white border-transparent shadow-md shadow-blue-200'
+                    : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300 hover:text-blue-500'
                 }`}
+                style={selectedCategory === cat ? { background: 'linear-gradient(135deg, #2563EB, #0EA5E9)' } : {}}
               >
                 {cat}
               </button>
@@ -104,10 +121,11 @@ const Step1 = ({ title, description, updateMeta }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        {/* Time + Cover */}
+        <div className="grid grid-cols-2 gap-5">
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Thời gian làm bài</label>
-            <div className="flex items-center gap-3">
+            <label className="text-sm font-bold text-slate-700">Thời gian làm bài</label>
+            <div className="flex items-center gap-2.5">
               <input
                 type="number"
                 value={timeLimit}
@@ -115,76 +133,80 @@ const Step1 = ({ title, description, updateMeta }) => {
                   setTimeLimit(e.target.value);
                   updateMeta('time_limit', parseInt(e.target.value) || 0);
                 }}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all text-sm"
               />
-              <span className="text-sm font-medium text-gray-400 shrink-0">phút</span>
+              <span className="text-sm font-medium text-slate-400 shrink-0">phút</span>
             </div>
           </div>
-
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Ảnh bìa</label>
-            <button className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50/30 transition-all outline-none">
-              <Upload size={16} />
-              <span className="text-sm font-semibold">Tải ảnh lên (16:9)</span>
+            <label className="text-sm font-bold text-slate-700">Ảnh bìa</label>
+            <button className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50/30 transition-all outline-none text-sm">
+              <Upload size={15} />
+              <span className="font-semibold">Tải ảnh (16:9)</span>
             </button>
           </div>
         </div>
       </div>
 
-      <div className="flex items-start gap-3 px-4 py-3 bg-blue-50 rounded-xl border border-blue-100">
+      {/* Tip */}
+      <div className="flex items-start gap-3 px-4 py-3.5 bg-blue-50 rounded-xl border border-blue-100">
         <Lightbulb size={16} className="text-blue-500 mt-0.5 shrink-0" />
-        <p className="text-sm text-blue-600">Một tiêu đề hấp dẫn và ảnh bìa chất lượng giúp học sinh hào hứng hơn với bài thi của bạn.</p>
+        <p className="text-sm text-blue-600 font-medium">Tiêu đề hấp dẫn và ảnh bìa chất lượng giúp học sinh hào hứng hơn với bài thi của bạn.</p>
       </div>
     </div>
   );
 };
 
+/* ── Step 2 — Questions ─────────────────────────────────── */
 const Step2 = ({ questions, addQuestion, removeQuestion, updateQuestionContent, updateOptionText, setCorrectOption }) => (
-  <div className="space-y-5">
+  <div className="space-y-4 animate-slide-up">
     {questions.map((q, index) => (
       <div
         key={q.id}
         id={`question-${index}`}
-        className="bg-white rounded-2xl border border-gray-200 p-8 hover:border-blue-200 transition-all duration-300"
+        className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 hover:border-blue-200 transition-all duration-200"
       >
         <div className="flex justify-between items-start mb-5">
           <div className="flex items-center gap-3">
-            <span className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white font-bold rounded-lg text-sm shadow-md shadow-blue-100">
+            <span
+              className="flex items-center justify-center w-8 h-8 text-white font-black rounded-lg text-sm shadow-md"
+              style={{ background: 'linear-gradient(135deg, #2563EB, #0EA5E9)' }}
+            >
               {index + 1}
             </span>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
               {q.type === 'single' ? 'Trắc nghiệm' : 'Nhiều đáp án'}
             </span>
           </div>
           <button
             onClick={() => removeQuestion(q.id)}
-            className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all outline-none"
+            className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all outline-none"
           >
-            <Trash2 size={16} />
+            <Trash2 size={15} />
           </button>
         </div>
 
         <textarea
           placeholder="Nhập nội dung câu hỏi..."
-          className="w-full px-0 text-base font-medium border-none outline-none placeholder:text-gray-300 resize-none min-h-[52px] text-gray-800"
+          className="w-full px-0 text-base font-semibold border-none outline-none placeholder:text-slate-300 resize-none min-h-[48px] text-slate-800 bg-transparent"
           value={q.content}
           onChange={(e) => updateQuestionContent(q.id, e.target.value)}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mt-5">
           {q.options.map((opt, optIdx) => (
             <div
               key={opt.id}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all ${
-                opt.isCorrect ? 'border-green-500 bg-green-50/50' : 'border-gray-100 bg-gray-50/30'
+                opt.isCorrect ? 'border-emerald-400 bg-emerald-50/50' : 'border-slate-100 bg-slate-50/30'
               }`}
             >
               <button
                 onClick={() => setCorrectOption(q.id, opt.id)}
                 className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all outline-none ${
                   opt.isCorrect
-                    ? 'bg-green-500 text-white shadow-md shadow-green-100'
-                    : 'bg-white border-2 border-gray-200 hover:border-blue-400'
+                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-100'
+                    : 'bg-white border-2 border-slate-200 hover:border-blue-400'
                 }`}
               >
                 {opt.isCorrect && <CheckCircle2 size={13} strokeWidth={3} />}
@@ -192,7 +214,7 @@ const Step2 = ({ questions, addQuestion, removeQuestion, updateQuestionContent, 
               <input
                 type="text"
                 placeholder={`Đáp án ${String.fromCharCode(65 + optIdx)}`}
-                className="bg-transparent border-none outline-none w-full text-sm font-medium text-gray-700 placeholder:text-gray-300"
+                className="bg-transparent border-none outline-none w-full text-sm font-medium text-slate-700 placeholder:text-slate-300"
                 value={opt.text}
                 onChange={(e) => updateOptionText(q.id, opt.id, e.target.value)}
               />
@@ -204,98 +226,100 @@ const Step2 = ({ questions, addQuestion, removeQuestion, updateQuestionContent, 
 
     <button
       onClick={addQuestion}
-      className="group w-full py-8 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-3 text-gray-400 hover:border-blue-400 hover:bg-blue-50/30 hover:text-blue-600 transition-all duration-300 outline-none"
+      className="group w-full py-7 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-3 text-slate-400 hover:border-blue-400 hover:bg-blue-50/30 hover:text-blue-600 transition-all duration-300 outline-none"
     >
-      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all border border-gray-100">
-        <Plus size={20} />
+      <div
+        className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 group-hover:text-white transition-all border border-slate-100"
+        style={undefined}
+      >
+        <Plus size={20} className="group-hover:text-blue-600" />
       </div>
-      <span className="font-bold tracking-wide uppercase text-xs">Thêm câu hỏi mới</span>
+      <span className="font-black tracking-wide uppercase text-xs">Thêm câu hỏi mới</span>
     </button>
   </div>
 );
 
-const Step3 = ({ questions, updateMeta, publishQuiz, isSaving }) => (
-  <div className="space-y-6">
-    <div className="bg-white rounded-2xl border border-gray-200 p-8 space-y-5">
-      <h3 className="font-bold text-gray-800 flex items-center gap-2">
-        <Settings size={18} className="text-blue-600" />
+/* ── Step 3 — Settings ──────────────────────────────────── */
+const Step3 = ({ questions, updateMeta }) => (
+  <div className="space-y-5 animate-slide-up">
+    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-7 space-y-0">
+      <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-5">
+        <Settings size={17} className="text-blue-500" />
         Cài đặt bài thi
       </h3>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between py-4 border-b border-gray-50">
-          <div>
-            <p className="text-sm font-semibold text-gray-700">Số lần làm tối đa</p>
-            <p className="text-xs text-gray-400 mt-0.5">Số lần mỗi học sinh được phép làm bài</p>
-          </div>
-          <select
-            onChange={(e) => updateMeta('max_attempts', parseInt(e.target.value))}
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 outline-none"
-          >
-            <option value={1}>1 lần</option>
-            <option value={2}>2 lần</option>
-            <option value={3}>3 lần</option>
-            <option value={0}>Không giới hạn</option>
-          </select>
+      {/* Max attempts */}
+      <div className="flex items-center justify-between py-4 border-b border-slate-50">
+        <div>
+          <p className="text-sm font-semibold text-slate-700">Số lần làm tối đa</p>
+          <p className="text-xs text-slate-400 mt-0.5">Số lần mỗi học sinh được làm bài</p>
         </div>
+        <select
+          onChange={(e) => updateMeta('max_attempts', parseInt(e.target.value))}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 transition-all"
+        >
+          <option value={1}>1 lần</option>
+          <option value={2}>2 lần</option>
+          <option value={3}>3 lần</option>
+          <option value={0}>Không giới hạn</option>
+        </select>
+      </div>
 
-        <div className="flex items-center justify-between py-4 border-b border-gray-50">
-          <div>
-            <p className="text-sm font-semibold text-gray-700">Hiển thị đáp án</p>
-            <p className="text-xs text-gray-400 mt-0.5">Học sinh xem được đáp án sau khi nộp bài</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" className="sr-only peer" defaultChecked />
-            <div className="w-10 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-4"></div>
-          </label>
+      {/* Show answers */}
+      <div className="flex items-center justify-between py-4 border-b border-slate-50">
+        <div>
+          <p className="text-sm font-semibold text-slate-700">Hiển thị đáp án</p>
+          <p className="text-xs text-slate-400 mt-0.5">Học sinh xem đáp án sau khi nộp</p>
         </div>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" className="sr-only peer" defaultChecked />
+          <div className="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:bg-blue-500 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-4" />
+        </label>
+      </div>
 
-        <div className="flex items-center justify-between py-4">
-          <div>
-            <p className="text-sm font-semibold text-gray-700">Xáo trộn câu hỏi</p>
-            <p className="text-xs text-gray-400 mt-0.5">Thứ tự câu hỏi sẽ ngẫu nhiên mỗi lần thi</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" className="sr-only peer" />
-            <div className="w-10 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-4"></div>
-          </label>
+      {/* Shuffle */}
+      <div className="flex items-center justify-between py-4">
+        <div>
+          <p className="text-sm font-semibold text-slate-700">Xáo trộn câu hỏi</p>
+          <p className="text-xs text-slate-400 mt-0.5">Thứ tự câu hỏi ngẫu nhiên mỗi lần thi</p>
         </div>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" className="sr-only peer" />
+          <div className="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:bg-blue-500 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-4" />
+        </label>
       </div>
     </div>
 
-    <div className="bg-white rounded-2xl border border-gray-200 p-6">
-      <div className="flex items-center gap-3 mb-4">
-        <BookOpen size={18} className="text-blue-600" />
-        <span className="font-bold text-gray-800">Tổng quan</span>
+    {/* Summary */}
+    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6">
+      <div className="flex items-center gap-2.5 mb-4">
+        <BookOpen size={17} className="text-blue-500" />
+        <span className="font-bold text-slate-800">Tổng quan</span>
       </div>
-      <div className="flex items-center justify-between py-3 border-b border-gray-50">
-        <span className="text-sm text-gray-500">Số câu hỏi</span>
-        <span className="text-sm font-bold text-gray-800">{questions.length} câu</span>
-      </div>
-      <div className="flex items-center justify-between py-3">
-        <span className="text-sm text-gray-500">Trạng thái</span>
-        <span className="text-xs font-bold bg-yellow-100 text-yellow-600 px-2.5 py-1 rounded-full">Bản nháp</span>
+      <div className="space-y-0">
+        <div className="flex items-center justify-between py-3 border-b border-slate-50">
+          <span className="text-sm text-slate-500 font-medium">Số câu hỏi</span>
+          <span className="text-sm font-black text-slate-800">{questions.length} câu</span>
+        </div>
+        <div className="flex items-center justify-between pt-3">
+          <span className="text-sm text-slate-500 font-medium">Trạng thái</span>
+          <span className="text-xs font-bold bg-amber-100 text-amber-600 px-2.5 py-1 rounded-full">Bản nháp</span>
+        </div>
       </div>
     </div>
   </div>
 );
 
+/* ── CreateQuiz Page ─────────────────────────────────────── */
 const CreateQuiz = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const navigate = useNavigate();
 
   const {
-    title,
-    description,
-    updateMeta,
-    questions,
-    addQuestion,
-    removeQuestion,
-    updateQuestionContent,
-    updateOptionText,
-    setCorrectOption,
-    publishQuiz,
-    isSaving,
+    title, description, updateMeta,
+    questions, addQuestion, removeQuestion,
+    updateQuestionContent, updateOptionText, setCorrectOption,
+    publishQuiz, isSaving,
   } = useQuizStore();
 
   const handleNext = () => {
@@ -309,28 +333,22 @@ const CreateQuiz = () => {
 
   const handlePublish = async () => {
     const quizId = await publishQuiz();
-    if (quizId) {
-      navigate(`/quiz/${quizId}`);
-    }
+    if (quizId) navigate(`/quiz/${quizId}`);
   };
 
   const stepTitles = {
-    1: { title: 'Tạo Quiz mới', subtitle: 'Nhập các thông tin cơ bản để bắt đầu soạn thảo nội dung.' },
-    2: { title: 'Soạn câu hỏi', subtitle: `Đã có ${questions.length} câu hỏi. Thêm và chỉnh sửa nội dung câu hỏi bên dưới.` },
-    3: { title: 'Cài đặt & Xuất bản', subtitle: 'Cấu hình các tùy chọn cuối cùng và xuất bản bài thi.' },
+    1: { title: 'Tạo Quiz mới', subtitle: 'Nhập thông tin cơ bản để bắt đầu soạn thảo.' },
+    2: { title: 'Soạn câu hỏi', subtitle: `Đã có ${questions.length} câu hỏi.` },
+    3: { title: 'Cài đặt & Xuất bản', subtitle: 'Cấu hình các tùy chọn và xuất bản bài thi.' },
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B]">
-      <Navbar />
-
-      <main className="max-w-[620px] mx-auto px-4 py-10">
+    <DashboardLayout
+      title={stepTitles[currentStep].title}
+      subtitle={stepTitles[currentStep].subtitle}
+    >
+      <div className="max-w-[640px] mx-auto">
         <StepIndicator currentStep={currentStep} />
-
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{stepTitles[currentStep].title}</h1>
-          <p className="text-gray-400 text-sm">{stepTitles[currentStep].subtitle}</p>
-        </div>
 
         {currentStep === 1 && (
           <Step1 title={title} description={description} updateMeta={updateMeta} />
@@ -346,43 +364,42 @@ const CreateQuiz = () => {
           />
         )}
         {currentStep === 3 && (
-          <Step3
-            questions={questions}
-            updateMeta={updateMeta}
-            publishQuiz={publishQuiz}
-            isSaving={isSaving}
-          />
+          <Step3 questions={questions} updateMeta={updateMeta} />
         )}
 
-        <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-100">
+        {/* Navigation bar */}
+        <div className="flex justify-between items-center mt-8 pt-6 border-t border-slate-200">
           <button
             onClick={handleBack}
-            className={`text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors ${currentStep === 1 ? 'invisible' : ''}`}
+            className={`flex items-center gap-2 text-sm font-semibold text-slate-400 hover:text-slate-700 transition-colors ${currentStep === 1 ? 'invisible' : ''}`}
           >
-            Lưu bản nháp
+            <ArrowLeft size={15} />
+            Quay lại
           </button>
 
           {currentStep < 3 ? (
             <button
               onClick={handleNext}
-              className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all outline-none"
+              className="flex items-center gap-2 px-6 py-2.5 text-white text-sm font-bold rounded-xl shadow-lg shadow-blue-200 hover:shadow-xl hover:-translate-y-0.5 transition-all outline-none"
+              style={{ background: 'linear-gradient(135deg, #2563EB, #0EA5E9)' }}
             >
               Tiếp theo
-              <ArrowRight size={16} />
+              <ArrowRight size={15} />
             </button>
           ) : (
             <button
               onClick={handlePublish}
               disabled={isSaving}
-              className="flex items-center gap-2 px-8 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-8 py-2.5 text-white text-sm font-bold rounded-xl shadow-lg shadow-blue-200 hover:shadow-xl hover:-translate-y-0.5 transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'linear-gradient(135deg, #2563EB, #0EA5E9)' }}
             >
-              <Save size={16} />
+              <Save size={15} />
               {isSaving ? 'Đang xuất bản...' : 'Xuất bản Quiz'}
             </button>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 };
 
