@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clock, CheckCircle2, Flag } from "lucide-react";
+import { getQuizQuestions } from "@/services/quizService";
 
 export default function QuizPlay() {
 
@@ -13,29 +14,51 @@ export default function QuizPlay() {
   const timerRef = useRef(null);
 
   const [user, setUser] = useState(null);
+  const [quiz, setQuiz] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [timeLeft, setTimeLeft] = useState(900);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [confirmSubmit, setConfirmSubmit] = useState(false);
 
   /* =============================
-        DEMO QUIZ
+        FETCH QUIZ DATA FROM API
   ============================== */
-  const quiz = {
-    duration: 900,
-    questions: Array.from({ length: 10 }, (_, i) => ({
-      text: `Câu hỏi số ${i + 1}: React dùng để làm gì?`,
-      answers: [
-        "Xây dựng UI",
-        "Quản lý database",
-        "Viết hệ điều hành",
-        "Thiết kế phần cứng",
-      ],
-      correct: 0,
-    })),
-  };
+  useEffect(() => {
+    const fetchQuizData = async () => {
+      try {
+        setLoading(true);
+        const response = await getQuizQuestions(id);
+        
+        // Format the questions from API response
+        const formattedQuestions = (response.data.questions || []).map(question => ({
+          _id: question._id,
+          text: question.content || question.text,
+          answers: (question.answers || []).map(ans => ans.content || ans),
+          correctAnswerIndex: question.answers?.findIndex(ans => ans.is_correct) || 0,
+        }));
 
-  const question = quiz.questions[currentQuestion];
+        setQuiz({
+          duration: 900, // Default duration, có thể cập nhật từ quiz info sau
+          questions: formattedQuestions.length > 0 ? formattedQuestions : []
+        });
+        
+        if (formattedQuestions.length === 0) {
+          setError("Không có câu hỏi trong bài quiz này");
+        }
+      } catch (err) {
+        console.error("Lỗi khi lấy câu hỏi:", err);
+        setError(err.response?.data?.message || "Lỗi khi tải bài quiz");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchQuizData();
+    }
+  }, [id]);
 
   /* =============================
         LOAD USER
@@ -166,7 +189,7 @@ export default function QuizPlay() {
     let correct = 0;
 
     quiz.questions.forEach((q, i) => {
-      if (answers[i] === q.correct) correct++;
+      if (answers[i] === q.correctAnswerIndex) correct++;
     });
 
     const total = quiz.questions.length;
@@ -196,6 +219,37 @@ export default function QuizPlay() {
 
 
   if (!user) return null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center bg-slate-100 dark:bg-slate-900">
+        <Card className="p-8">
+          <CardContent>
+            <p className="text-lg font-semibold">Đang tải bài quiz...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error || !quiz || quiz.questions.length === 0) {
+    return (
+      <div className="min-h-screen flex justify-center items-center bg-slate-100 dark:bg-slate-900">
+        <Card className="p-8 max-w-md">
+          <CardContent>
+            <p className="text-lg font-semibold text-red-500 mb-4">
+              {error || "Không thể tải bài quiz"}
+            </p>
+            <Button onClick={() => navigate("/")} className="w-full">
+              Quay lại trang chủ
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const question = quiz.questions[currentQuestion];
 
 
 
