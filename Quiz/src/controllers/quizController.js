@@ -182,11 +182,37 @@ const joinQuiz = async (req, res) => {
     }
 };
 
+/**
+ * 🔥 NỘP BÀI THI
+ * POST /api/quizzes/:quizId/submit
+ */
+const submitQuiz = async (req, res) => {
+    try {
+        const { quizId } = req.params;
+        const answers = req.body.answers; // Dự kiến mảng các câu trả lời
+        const userId = req.user.id;
+
+        // Task 31 & 32 sẽ thực hiện logic lưu và tính điểm ở đây
+        
+        return res.status(200).json({ 
+            message: "Nộp bài thành công (Placeholder)",
+            quizId,
+            userId,
+            receivedAnswers: answers
+        });
+    } catch (error) {
+        console.error("Submit quiz error:", error);
+        return res.status(500).json({ message: "Lỗi server khi nộp bài" });
+    }
+};
+
 module.exports = {
     createQuiz,
     addQuestionsToQuiz,
     getAllQuizzes,
     getQuizById,
     checkQuizCode,
-    joinQuiz
+    joinQuiz,
+    submitQuiz
+
 };

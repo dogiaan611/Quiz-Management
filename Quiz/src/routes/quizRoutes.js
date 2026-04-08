@@ -6,7 +6,8 @@ const {
     getAllQuizzes, 
     getQuizById,
     checkQuizCode,
-    joinQuiz
+    joinQuiz,
+    submitQuiz
 } = require("../controllers/quizController");
 
 const { authenticate, authorize } = require("../middlewares/authMiddleware");
@@ -53,6 +54,13 @@ router.post(
     "/join",
     body("code").notEmpty().withMessage("Mã không được để trống"),
     joinQuiz
+);
+
+// 🔥 NỘP BÀI THI
+router.post(
+    "/:quizId/submit",
+    authenticate,
+    submitQuiz
 );
 
 module.exports = router;
