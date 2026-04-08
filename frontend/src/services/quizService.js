@@ -36,6 +36,10 @@ export const submitAnswer = (attemptId, questionId, answerId) =>
 export const submitAllAnswers = (attemptId, answers) =>
   api.put(`${ATTEMPTS_API}/${attemptId}/answers`, { answers });
 
+// Nộp bài (hoàn thiện và tính điểm) - DÙNG CHO BACKEND HIỆN TẠI
+export const submitQuiz = (quizId, answers) =>
+  api.post(`${API_BASE}/${quizId}/submit`, { answers });
+
 // Nộp bài (hoàn thiện và tính điểm)
 export const submitAttempt = (attemptId) =>
   api.put(`${ATTEMPTS_API}/${attemptId}/submit`);
