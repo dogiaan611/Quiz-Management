@@ -1,4 +1,4 @@
-const { Quiz, Attempt, Answer, Question } = require("../models");
+const { Quiz } = require("../models");
 const { validationResult } = require("express-validator");
 const crypto = require("crypto");
 
@@ -30,10 +30,12 @@ const createQuiz = async (req, res) => {
         while (!isCodeUnique) {
             access_code = crypto.randomBytes(4).toString("hex").toUpperCase(); 
             const existingQuiz = await Quiz.findOne({ access_code });
-            if (!existingQuiz) isCodeUnique = true;
+            if (!existingQuiz) {
+                isCodeUnique = true;
+            }
         }
 
-        const quiz = await Quiz.create({
+        const quizData = {
             title,
             description,
             time_limit,
@@ -42,7 +44,9 @@ const createQuiz = async (req, res) => {
             end_time,
             created_by,
             access_code,
-        });
+        };
+
+        const quiz = await Quiz.create(quizData);
 
         return res.status(201).json({
             message: "Tạo quiz thành công",
@@ -55,11 +59,12 @@ const createQuiz = async (req, res) => {
 };
 
 /**
- * Thêm câu hỏi vào quiz
+ * Thêm các câu hỏi vào quiz dựa trên danh sách question ID
+ * POST /api/quizzes/:quizId/questions
  */
 const addQuestionsToQuiz = async (req, res) => {
     const { quizId } = req.params;
-    const { questionIds } = req.body;
+    const { questionIds } = req.body; // Expecting an array of question IDs
 
     if (!questionIds || !Array.isArray(questionIds) || questionIds.length === 0) {
         return res.status(400).json({ message: "Danh sách question IDs không hợp lệ." });
@@ -67,47 +72,60 @@ const addQuestionsToQuiz = async (req, res) => {
 
     try {
         const quiz = await Quiz.findById(quizId);
-        if (!quiz) return res.status(404).json({ message: "Không tìm thấy quiz." });
+        if (!quiz) {
+            return res.status(404).json({ message: "Không tìm thấy quiz." });
+        }
 
+        // Kiểm tra quyền sở hữu (chỉ cho phép teacher/admin tạo quiz đó mới có quyền sửa)
         if (quiz.created_by.toString() !== req.user.id && req.user.role !== 'admin') {
             return res.status(403).json({ message: "Bạn không có quyền chỉnh sửa quiz này." });
         }
 
+        // Kiểm tra tính hợp lệ của questionIds nếu cần thiết (ví dụ: tất cả IDs phải tồn tại)
+        // const existingQuestionsCount = await Question.countDocuments({ _id: { $in: questionIds } });
+        // if (existingQuestionsCount !== questionIds.length) {
+        //     return res.status(400).json({ message: "Một số câu hỏi không tồn tại." });
+        // }
+
+        // Chuyển mảng questions của quiz về string để dễ dàng filter (nếu mong muốn check trùng lặp)
         const currentQuestionIds = quiz.questions.map(id => id.toString());
         const newQuestions = questionIds.filter(id => !currentQuestionIds.includes(id));
-
+        
         if (newQuestions.length === 0) {
-            return res.status(400).json({ message: "Các câu hỏi đã tồn tại." });
+            return res.status(400).json({ message: "Tất cả các câu hỏi này đã có trong quiz." });
         }
 
         quiz.questions.push(...newQuestions);
         await quiz.save();
 
         return res.status(200).json({
-            message: "Thêm câu hỏi thành công",
+            message: "Thêm câu hỏi vào quiz thành công",
             added_count: newQuestions.length,
             quiz,
         });
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "Lỗi server" });
+        console.error("Add questions to quiz error:", error);
+        return res.status(500).json({ message: "Lỗi server khi thêm câu hỏi vào quiz" });
     }
 };
 
 /**
  * Lấy tất cả quiz
+ * GET /api/quizzes
  */
 const getAllQuizzes = async (req, res) => {
     try {
         const quizzes = await Quiz.find().populate("created_by", "username email");
         return res.status(200).json({ quizzes });
     } catch (error) {
-        return res.status(500).json({ message: "Lỗi server" });
+        console.error("Get all quizzes error:", error);
+        return res.status(500).json({ message: "Lỗi server khi lấy danh sách quiz" });
     }
 };
 
 /**
- * Lấy chi tiết quiz
+ * Lấy chi tiết một quiz bao gồm câu hỏi và câu trả lời
+ * GET /api/quizzes/:quizId
  */
 const getQuizById = async (req, res) => {
     const { quizId } = req.params;
@@ -120,177 +138,136 @@ const getQuizById = async (req, res) => {
                 populate: { path: "answers" }
             });
 
-        if (!quiz) return res.status(404).json({ message: "Không tìm thấy quiz" });
+        if (!quiz) {
+            return res.status(404).json({ message: "Không tìm thấy quiz." });
+        }
 
         return res.status(200).json({ quiz });
     } catch (error) {
-        return res.status(500).json({ message: "Lỗi server" });
+        console.error("Get quiz by id error:", error);
+        return res.status(500).json({ message: "Lỗi server khi lấy thông tin quiz" });
     }
 };
 
 /**
- * 🔥 CHECK MÃ QUIZ
- * POST /api/quizzes/check-code
- */
-const checkQuizCode = async (req, res) => {
-    const { code } = req.body;
-
-    try {
-        const quiz = await Quiz.findOne({ access_code: code });
-
-        if (!quiz) {
-            return res.status(404).json({ message: "Mã quiz không tồn tại" });
-        }
-
-        if (!quiz.is_published) {
-            return res.status(400).json({ message: "Quiz chưa được publish" });
-        }
-
-        return res.status(200).json({
-            message: "Mã hợp lệ",
-            quiz: {
-                id: quiz._id,
-                title: quiz.title,
-                description: quiz.description
-            }
-        });
-    } catch (error) {
-        return res.status(500).json({ message: "Lỗi server" });
-    }
-};
-
-/**
- * 🔥 THAM GIA QUIZ
- * POST /api/quizzes/join
- */
-const joinQuiz = async (req, res) => {
-    const { code } = req.body;
-
-    try {
-        const quiz = await Quiz.findOne({ access_code: code });
-
-        if (!quiz) {
-            return res.status(404).json({ message: "Mã quiz không tồn tại" });
-        }
-
-        return res.status(200).json({
-            message: "Tham gia quiz thành công",
-            quiz
-        });
-    } catch (error) {
-        return res.status(500).json({ message: "Lỗi server" });
-    }
-};
-
-/**
- * 🔥 NỘP BÀI THI
+ * Nộp bài làm quiz
  * POST /api/quizzes/:quizId/submit
+ * Body: { answers: [{ question_id: string, answer_id: string }] }
  */
 const submitQuiz = async (req, res) => {
-    try {
-        const { quizId } = req.params;
-        const { answers } = req.body; // [{ question_id, answer_id }]
-        const userId = req.user.id;
+    const { quizId } = req.params;
+    const { answers } = req.body;
+    const userId = req.user.id;
 
-        // 1. Kiểm tra Quiz tồn tại
-        const quiz = await Quiz.findById(quizId);
+    // Validate input
+    if (!answers || !Array.isArray(answers)) {
+        return res.status(400).json({ message: "Danh sách câu trả lời không hợp lệ." });
+    }
+
+    try {
+        // Lấy quiz thông tin
+        const quiz = await Quiz.findById(quizId).populate({
+            path: "questions",
+            populate: { path: "answers" }
+        });
+
         if (!quiz) {
-            return res.status(404).json({ message: "Không tìm thấy Quiz này." });
+            return res.status(404).json({ message: "Không tìm thấy quiz." });
         }
 
+        // Kiểm tra thời gian làm bài
+        const now = new Date();
+        if (quiz.start_time && now < quiz.start_time) {
+            return res.status(403).json({ message: "Quiz chưa bắt đầu." });
+        }
+        if (quiz.end_time && now > quiz.end_time) {
+            return res.status(403).json({ message: "Quiz đã hết thời gian." });
+        }
+
+        // Kiểm tra số lần làm bài
+        if (quiz.max_attempts > 0) {
+            const { Attempt } = require("../models");
+            const attemptCount = await Attempt.countDocuments({
+                quiz_id: quizId,
+                user_id: userId,
+                status: "submitted"
+            });
+
+            if (attemptCount >= quiz.max_attempts) {
+                return res.status(403).json({ message: "Đã hết số lần làm bài cho phép." });
+            }
+        }
+
+        // Xử lý và kiểm tra các câu trả lời
         let correctCount = 0;
         const processedAnswers = [];
 
-        // 2. Chấm điểm (Task 32)
-        if (answers && Array.isArray(answers)) {
-            for (const ans of answers) {
-                const dbAnswer = await Answer.findOne({
-                    _id: ans.answer_id,
-                    question_id: ans.question_id
-                });
+        for (const userAnswer of answers) {
+            const { question_id, answer_id } = userAnswer;
 
-                const isCorrect = dbAnswer ? dbAnswer.is_correct : false;
-                if (isCorrect) correctCount++;
-
-                processedAnswers.push({
-                    question_id: ans.question_id,
-                    answer_id: ans.answer_id,
-                    is_correct: isCorrect
-                });
+            if (!question_id) {
+                return res.status(400).json({ message: "question_id bị thiếu." });
             }
+
+            // Tìm câu hỏi trong quiz
+            const question = quiz.questions.find(q => q._id.toString() === question_id);
+            if (!question) {
+                return res.status(400).json({ message: `Câu hỏi ${question_id} không tồn tại trong quiz này.` });
+            }
+
+            let isCorrect = false;
+
+            // Nếu user chọn answer, kiểm tra xem có đúng không
+            if (answer_id) {
+                const correctAnswer = question.answers.find(a => a._id.toString() === answer_id);
+                
+                if (!correctAnswer) {
+                    return res.status(400).json({ message: `Câu trả lời ${answer_id} không hợp lệ.` });
+                }
+
+                isCorrect = correctAnswer.is_correct;
+                if (isCorrect) {
+                    correctCount++;
+                }
+            }
+
+            processedAnswers.push({
+                question_id,
+                answer_id: answer_id || null,
+                is_correct: isCorrect,
+            });
         }
 
-        // Tỷ lệ điểm trên thang 10
-        const score = (quiz.questions.length > 0) 
-            ? ((correctCount / quiz.questions.length) * 10).toFixed(2) 
-            : 0;
+        // Tính điểm
+        const totalQuestions = processedAnswers.length;
+        const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
 
-        // 3. Tạo bản ghi Attempt (Lưu kết quả - Task 31 & 32)
+        // Tạo Attempt record
+        const { Attempt } = require("../models");
         const attempt = await Attempt.create({
             quiz_id: quizId,
             user_id: userId,
-            total_questions: quiz.questions.length,
-            correct_answers: correctCount,
-            score: parseFloat(score),
+            answers: processedAnswers,
             status: "submitted",
-            submitted_at: new Date(),
-            answers: processedAnswers
+            submitted_at: now,
+            score,
+            total_questions: totalQuestions,
+            correct_answers: correctCount,
         });
 
-        return res.status(201).json({ 
-            message: "Nộp bài và chấm điểm thành công",
+        return res.status(201).json({
+            message: "Nộp bài thành công",
             attempt: {
-                id: attempt._id,
-                score: attempt.score,
-                correct_answers: attempt.correct_answers,
-                total_questions: attempt.total_questions,
-                submitted_at: attempt.submitted_at
-            }
+                _id: attempt._id,
+                score,
+                total_questions: totalQuestions,
+                correct_answers: correctCount,
+                submitted_at: attempt.submitted_at,
+            },
         });
-
     } catch (error) {
         console.error("Submit quiz error:", error);
         return res.status(500).json({ message: "Lỗi server khi nộp bài" });
-    }
-};
-
-/**
- * 🔥 LẤY KẾT QUẢ BÀI LÀM CHI TIẾT
- * GET /api/quizzes/attempts/:attemptId
- */
-const getAttemptResult = async (req, res) => {
-    try {
-        const { attemptId } = req.params;
-        const userId = req.user.id;
-
-        const attempt = await Attempt.findById(attemptId)
-            .populate("quiz_id", "title description")
-            .populate({
-                path: "answers.question_id",
-                select: "content type image_url",
-            })
-            .populate({
-                path: "answers.answer_id",
-                select: "content is_correct",
-            });
-
-        if (!attempt) {
-            return res.status(404).json({ message: "Không tìm thấy kết quả bài làm này." });
-        }
-
-        // Bảo mật: Chỉ người làm bài hoặc Admin/Teacher mới có quyền xem
-        if (attempt.user_id.toString() !== userId && req.user.role === 'student') {
-            return res.status(403).json({ message: "Bạn không có quyền xem kết quả này." });
-        }
-
-        return res.status(200).json({
-            message: "Lấy kết quả thành công",
-            result: attempt
-        });
-
-    } catch (error) {
-        console.error("Get attempt result error:", error);
-        return res.status(500).json({ message: "Lỗi server khi lấy kết quả" });
     }
 };
 
@@ -299,8 +276,6 @@ module.exports = {
     addQuestionsToQuiz,
     getAllQuizzes,
     getQuizById,
-    checkQuizCode,
-    joinQuiz,
     submitQuiz,
-    getAttemptResult
 };
+
