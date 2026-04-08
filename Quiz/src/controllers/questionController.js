@@ -5,11 +5,12 @@ const fs = require("fs");
 
 const createManualQuestion = async (req, res) => {
     try {
-        const { content, type, image_url, quiz_id, created_by, answers } = req.body;
+        const { content, type, image_url, quiz_id, answers } = req.body;
+        const created_by = req.user.id; // Lấy từ authMiddleware (JWT)
 
-        // 1. Kiểm tra các trường bắt buộc (Không bắt buộc quiz_id nữa)
-        if (!content || !created_by || !answers || !Array.isArray(answers) || answers.length === 0) {
-            return res.status(400).json({ message: "Vui lòng cung cấp đầy đủ thông tin: content, created_by, answers." });
+        // 1. Kiểm tra các trường bắt buộc
+        if (!content || !answers || !Array.isArray(answers) || answers.length === 0) {
+            return res.status(400).json({ message: "Vui lòng cung cấp đầy đủ thông tin: content, answers." });
         }
 
         // 2. Kiểm tra xem Quiz có tồn tại không (nếu có truyền quiz_id)
@@ -24,7 +25,7 @@ const createManualQuestion = async (req, res) => {
         // 3. Tạo Question mới
         const newQuestion = await Question.create({
             content,
-            type,
+            type: type || "multiple_choice",
             image_url: image_url || null,
             created_by
         });
@@ -92,123 +93,126 @@ const importQuestionsFromFile = async (req, res) => {
             return res.status(400).json({ message: "Vui lòng chọn file để tải lên." });
         }
 
-        const { quiz_id, created_by } = req.body;
+        const { quiz_id } = req.body;
+        const created_by = req.user?.id || req.body.created_by; // Ưu tiên lấy từ token nếu có
+
         if (!created_by) {
-            return res.status(400).json({ message: "Vui lòng cung cấp mã người tạo (created_by)." });
+            return res.status(400).json({ message: "Không xác định được người tạo." });
         }
 
-        // Đọc file Excel từ đường dẫn tạm của Multer
+        // 1. Kiểm tra Quiz tồn tại nếu có truyền quiz_id
+        if (quiz_id && mongoose.Types.ObjectId.isValid(quiz_id)) {
+            const quizExists = await Quiz.exists({ _id: quiz_id });
+            if (!quizExists) {
+                if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+                return res.status(404).json({ message: "Không tìm thấy Quiz với mã đã cung cấp." });
+            }
+        }
+
+        // 2. Đọc file Excel
         const workbook = xlsx.readFile(req.file.path);
-        const sheetName = workbook.SheetNames[0]; // Lấy sheet đầu tiên
-        const worksheet = workbook.Sheets[sheetName];
-        
-        // Chuyển đổi dữ liệu sheet thành mảng JSON
-        const jsonData = xlsx.utils.sheet_to_json(worksheet);
+        const sheetName = workbook.SheetNames[0];
+        const jsonData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
         if (jsonData.length === 0) {
-            return res.status(400).json({ message: "File Excel trống hoặc không đúng định dạng." });
+            if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+            return res.status(400).json({ message: "File Excel trống." });
         }
 
-        const stats = {
-            total: jsonData.length,
-            success: 0,
-            failed: 0
-        };
+        const stats = { total: jsonData.length, success: 0, failed: 0 };
+        const validQuestionsToInsert = [];
+        const errorDetails = [];
+        const rawAnswersMap = []; // Lưu tạm đáp án để insert sau khi có Question ID
 
-        const importResults = []; // Danh sách phân loại Hợp lệ và Không hợp lệ
-
+        // 3. Phân loại và Validate dữ liệu
         for (let i = 0; i < jsonData.length; i++) {
             const row = jsonData[i];
-            const rowIndex = i + 2; // Số thứ tự dòng trong Excel (thường bắt đầu từ 2)
+            const rowIndex = i + 2;
             const { question, A, B, C, D, correctAnswer } = row;
 
-            // --- 1. KIỂM TRA LỖI (VALIDATION) ---
             let error = null;
-
             if (!question || String(question).trim().length === 0) {
-                error = "Nội dung câu hỏi không được để trống";
+                error = "Nội dung câu hỏi trống";
             } else {
-                const availableOptions = [
+                const options = [
                     { key: "A", content: A },
                     { key: "B", content: B },
                     { key: "C", content: C },
                     { key: "D", content: D }
                 ].filter(opt => opt.content && String(opt.content).trim().length > 0);
 
-                if (availableOptions.length < 2) {
+                if (options.length < 2) {
                     error = "Phải có ít nhất 2 phương án trả lời";
                 } else {
-                    const validCorrectAnswer = String(correctAnswer || "").trim().toUpperCase();
-                    const isAnswerExists = availableOptions.some(opt => opt.key === validCorrectAnswer);
-                    
-                    if (!correctAnswer || !isAnswerExists) {
-                        error = `Đáp án đúng "${correctAnswer}" không tồn tại trong các lựa chọn A, B, C, D`;
+                    const validCorrectAns = String(correctAnswer || "").trim().toUpperCase();
+                    const hasCorrect = options.some(opt => opt.key === validCorrectAns);
+                    if (!hasCorrect) {
+                        error = `Đáp án đúng "${correctAnswer}" không tồn tại trong danh sách A, B, C, D`;
+                    } else {
+                        // Nếu hợp lệ, đưa vào danh sách chờ lưu
+                        validQuestionsToInsert.push({
+                            content: String(question).trim(),
+                            type: "multiple_choice",
+                            created_by: created_by
+                        });
+                        rawAnswersMap.push({
+                            options,
+                            correctKey: validCorrectAns,
+                            rowIndex
+                        });
+                        continue;
                     }
                 }
             }
 
-            // --- 2. XỬ LÝ THEO KẾT QUẢ KIỂM TRA ---
             if (error) {
                 stats.failed++;
-                importResults.push({
-                    row: rowIndex,
-                    status: "failed",
-                    question: question || "(Bỏ trống)",
-                    error: error
-                });
-                continue;
+                errorDetails.push({ row: rowIndex, status: "failed", error });
             }
+        }
 
-            // --- 3. NẾU HỢP LỆ -> LƯU VÀO DATABASE ---
-            const validOptions = [
-                { key: "A", content: A },
-                { key: "B", content: B },
-                { key: "C", content: C },
-                { key: "D", content: D }
-            ].filter(opt => opt.content && String(opt.content).trim().length > 0);
+        // 4. THỰC HIỆN LƯU VÀO DATABASE (BULK OPERATIONS)
+        if (validQuestionsToInsert.length > 0) {
+            // Bước 4.1: Lưu tất cả Question
+            const createdQuestions = await Question.insertMany(validQuestionsToInsert);
+            const newQuestionIds = createdQuestions.map(q => q._id);
 
-            const newQuestion = await Question.create({
-                content: String(question).trim(),
-                type: "multiple_choice",
-                created_by: created_by
+            // Bước 4.2: Chuẩn bị và lưu tất cả Answer
+            const allAnswersToInsert = [];
+            createdQuestions.forEach((q, index) => {
+                const mapData = rawAnswersMap[index];
+                mapData.options.forEach(opt => {
+                    allAnswersToInsert.push({
+                        question_id: q._id,
+                        content: opt.content,
+                        is_correct: opt.key === mapData.correctKey
+                    });
+                });
             });
 
-            const answersToInsert = validOptions.map(opt => ({
-                question_id: newQuestion._id,
-                content: opt.content,
-                is_correct: opt.key === String(correctAnswer || "").trim().toUpperCase()
-            }));
+            await Answer.insertMany(allAnswersToInsert);
 
-            await Answer.insertMany(answersToInsert);
-
+            // Bước 4.3: Cập nhật Quiz một lần duy nhất
             if (quiz_id && mongoose.Types.ObjectId.isValid(quiz_id)) {
                 await Quiz.findByIdAndUpdate(quiz_id, {
-                    $push: { questions: newQuestion._id }
+                    $push: { questions: { $each: newQuestionIds } }
                 });
             }
 
-            stats.success++;
-            importResults.push({
-                row: rowIndex,
-                status: "success",
-                question: question,
-                question_id: newQuestion._id
-            });
+            stats.success = createdQuestions.length;
         }
 
-        // 4. Xóa file sau khi xử lý xong
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
+        // 5. Dọn dẹp file tạm
+        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
 
         return res.status(201).json({
-            message: "Xử lý file Excel hoàn tất!",
-            stats: stats,
-            details: importResults
+            message: "Hoàn tất xử lý file!",
+            stats,
+            errors: errorDetails.length > 0 ? errorDetails : undefined
         });
 
     } catch (error) {
-        console.error("❌ ERROR IMPORTING FROM EXCEL:", error);
+        console.error("❌ IMPORT EXCEL ERROR:", error);
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         return res.status(500).json({ message: "Lỗi server khi nạp file", error: error.message });
     }
