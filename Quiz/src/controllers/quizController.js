@@ -149,10 +149,133 @@ const getQuizById = async (req, res) => {
     }
 };
 
+/**
+ * Nộp bài làm quiz
+ * POST /api/quizzes/:quizId/submit
+ * Body: { answers: [{ question_id: string, answer_id: string }] }
+ */
+const submitQuiz = async (req, res) => {
+    const { quizId } = req.params;
+    const { answers } = req.body;
+    const userId = req.user.id;
+
+    // Validate input
+    if (!answers || !Array.isArray(answers)) {
+        return res.status(400).json({ message: "Danh sách câu trả lời không hợp lệ." });
+    }
+
+    try {
+        // Lấy quiz thông tin
+        const quiz = await Quiz.findById(quizId).populate({
+            path: "questions",
+            populate: { path: "answers" }
+        });
+
+        if (!quiz) {
+            return res.status(404).json({ message: "Không tìm thấy quiz." });
+        }
+
+        // Kiểm tra thời gian làm bài
+        const now = new Date();
+        if (quiz.start_time && now < quiz.start_time) {
+            return res.status(403).json({ message: "Quiz chưa bắt đầu." });
+        }
+        if (quiz.end_time && now > quiz.end_time) {
+            return res.status(403).json({ message: "Quiz đã hết thời gian." });
+        }
+
+        // Kiểm tra số lần làm bài
+        if (quiz.max_attempts > 0) {
+            const { Attempt } = require("../models");
+            const attemptCount = await Attempt.countDocuments({
+                quiz_id: quizId,
+                user_id: userId,
+                status: "submitted"
+            });
+
+            if (attemptCount >= quiz.max_attempts) {
+                return res.status(403).json({ message: "Đã hết số lần làm bài cho phép." });
+            }
+        }
+
+        // Xử lý và kiểm tra các câu trả lời
+        let correctCount = 0;
+        const processedAnswers = [];
+
+        for (const userAnswer of answers) {
+            const { question_id, answer_id } = userAnswer;
+
+            if (!question_id) {
+                return res.status(400).json({ message: "question_id bị thiếu." });
+            }
+
+            // Tìm câu hỏi trong quiz
+            const question = quiz.questions.find(q => q._id.toString() === question_id);
+            if (!question) {
+                return res.status(400).json({ message: `Câu hỏi ${question_id} không tồn tại trong quiz này.` });
+            }
+
+            let isCorrect = false;
+
+            // Nếu user chọn answer, kiểm tra xem có đúng không
+            if (answer_id) {
+                const correctAnswer = question.answers.find(a => a._id.toString() === answer_id);
+                
+                if (!correctAnswer) {
+                    return res.status(400).json({ message: `Câu trả lời ${answer_id} không hợp lệ.` });
+                }
+
+                isCorrect = correctAnswer.is_correct;
+                if (isCorrect) {
+                    correctCount++;
+                }
+            }
+
+            processedAnswers.push({
+                question_id,
+                answer_id: answer_id || null,
+                is_correct: isCorrect,
+            });
+        }
+
+        // Tính điểm
+        const totalQuestions = processedAnswers.length;
+        const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+
+        // Tạo Attempt record
+        const { Attempt } = require("../models");
+        const attempt = await Attempt.create({
+            quiz_id: quizId,
+            user_id: userId,
+            answers: processedAnswers,
+            status: "submitted",
+            submitted_at: now,
+            score,
+            total_questions: totalQuestions,
+            correct_answers: correctCount,
+        });
+
+        return res.status(201).json({
+            message: "Nộp bài thành công",
+            attempt: {
+                _id: attempt._id,
+                score,
+                total_questions: totalQuestions,
+                correct_answers: correctCount,
+                submitted_at: attempt.submitted_at,
+            },
+        });
+    } catch (error) {
+        console.error("Submit quiz error:", error);
+        return res.status(500).json({ message: "Lỗi server khi nộp bài" });
+    }
+};
+
 module.exports = {
     createQuiz,
     addQuestionsToQuiz,
     getAllQuizzes,
     getQuizById,
+    submitQuiz,
 };
-
+

@@ -4,7 +4,8 @@ const {
     createQuiz, 
     addQuestionsToQuiz, 
     getAllQuizzes, 
-    getQuizById 
+    getQuizById,
+    submitQuiz 
 } = require("../controllers/quizController");
 const { authenticate, authorize } = require("../middlewares/authMiddleware");
 
@@ -34,6 +35,13 @@ router.post(
     authenticate,
     authorize("admin", "teacher"),
     addQuestionsToQuiz
+);
+
+// Nộp bài làm quiz
+router.post(
+    "/quizzes/:quizId/submit",
+    authenticate,
+    submitQuiz
 );
 
 module.exports = router;
