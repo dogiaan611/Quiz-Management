@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
-import { Mail, Lock, User } from "lucide-react";
+import { Mail, Lock, User, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import api from "@/services/axios"; // Sử dụng axios đã cấu hình
 
 export default function Register() {
   const navigate = useNavigate();
@@ -10,48 +11,32 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async (e) => {
     e.preventDefault();
 
     if (password !== confirmPassword) {
-      setMessage("Mật khẩu không khớp!");
+      setError("Mật khẩu xác nhận không khớp!");
       return;
     }
 
     try {
       setLoading(true);
-      setMessage("");
+      setError("");
 
-      const response = await fetch(
-        "http://localhost:3000/api/auth/register",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username,
-            email,
-            password,
-          }),
-        }
-      );
+      const { data } = await api.post("/auth/register", {
+        username,
+        email,
+        password,
+      });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setMessage(data.message || "Đăng ký thất bại");
-      } else {
-        setMessage("Đăng ký thành công! Đang chuyển sang đăng nhập...");
-        setTimeout(() => {
-          navigate("/login");
-        }, 1500);
-      }
-    } catch (error) {
-      setMessage("Không thể kết nối server!");
+      alert("Đăng ký thành công! Đang chuyển sang trang đăng nhập...");
+      navigate("/login");
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || "Đăng ký thất bại. Vui lòng thử lại!");
     } finally {
       setLoading(false);
     }
@@ -65,96 +50,93 @@ export default function Register() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md p-8 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl"
       >
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Tạo tài khoản
-          </h1>
-          <p className="text-slate-300">
-            Tham gia 5AT-QUIZ và bắt đầu tạo quiz ngay thôi nào!
-          </p>
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-black text-white mb-2 tracking-tight">Tạo tài khoản</h1>
+          <p className="text-slate-400 text-sm">Trình làng Quiz của riêng bạn ngay hôm nay!</p>
         </div>
 
-        <form className="space-y-5" onSubmit={handleRegister}>
+        <form className="space-y-4" onSubmit={handleRegister}>
           {/* Username */}
           <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
             <input
               type="text"
               placeholder="Họ và tên"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
             />
           </div>
 
           {/* Email */}
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
             <input
               type="email"
-              placeholder="Email"
+              placeholder="Địa chỉ Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
             />
           </div>
 
           {/* Password */}
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
             <input
               type="password"
-              placeholder="Password"
+              placeholder="Mật khẩu"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
             />
           </div>
 
           {/* Confirm Password */}
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
             <input
               type="password"
-              placeholder="Xác nhận password"
+              placeholder="Xác nhận mật khẩu"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
             />
           </div>
 
-          {/* Error / Message */}
-          {message && (
-            <p className="text-center text-sm text-red-400">
-              {message}
-            </p>
+          {/* Error Message */}
+          {error && (
+            <motion.p 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              className="text-center text-sm text-red-400 font-medium"
+            >
+              {error}
+            </motion.p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-lg shadow-lg transition"
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-lg shadow-xl shadow-indigo-900/20 hover:scale-[1.02] active:scale-95 transition-all flex justify-center items-center"
           >
-            {loading ? "Đang xử lý..." : "Đăng ký"}
+            {loading ? <Loader2 className="animate-spin" /> : "Đăng ký ngay"}
           </button>
         </form>
 
-        <div className="flex items-center gap-3 my-6">
+        <div className="flex items-center gap-3 my-8">
           <div className="flex-1 h-px bg-white/10" />
-          <span className="text-slate-400 text-sm">OR</span>
+          <span className="text-slate-500 text-xs font-bold">HOẶC</span>
           <div className="flex-1 h-px bg-white/10" />
         </div>
 
-        <p className="text-center text-slate-300 text-sm">
+        <p className="text-center text-slate-400 text-sm">
           Đã có tài khoản?{" "}
-          <Link
-            to="/login"
-            className="text-indigo-400 hover:text-indigo-300 cursor-pointer font-semibold"
-          >
+          <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-bold">
             Đăng nhập ngay
           </Link>
         </p>

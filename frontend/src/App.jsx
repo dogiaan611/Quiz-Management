@@ -8,6 +8,17 @@ import Register from "./pages/Register";
 import QuizPinPage from "./pages/QuizPinPage";
 import QuizPlay from "./pages/QuizPlay";
 import Result from "./pages/Result";
+import GoogleAuthCallback from "./pages/GoogleAuthCallback";
+import UserLayout from "./pages/user/UserLayout";
+import UserDashboard from "./pages/user/UserDashboard";
+import UserQuizzes from "./pages/user/UserQuizzes";
+import AdminLayout from "./pages/admin/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminQuizzes from "./pages/admin/AdminQuizzes";
+import AdminQuestions from "./pages/admin/AdminQuestions";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminReports from "./pages/admin/AdminReports";
+import AdminSettings from "./pages/admin/AdminSettings";
 
 function App() {
 
@@ -58,6 +69,11 @@ function App() {
           path="/login"
           element={<Login toggleTheme={toggleTheme} dark={dark} />}
         />
+
+        <Route
+          path="/auth/success"
+          element={<GoogleAuthCallback />}
+        />
         
       {/* REGISTER */}
         <Route
@@ -77,7 +93,23 @@ function App() {
           element={<QuizPlay toggleTheme={toggleTheme} dark={dark} />}
         />
 
-        {/* RESULT */}
+        {/* USER ROUTES */}
+        <Route path="/user" element={<UserLayout />}>
+          <Route path="dashboard" element={<UserDashboard />} />
+          <Route path="quizzes" element={<UserQuizzes />} />
+        </Route>
+
+        {/* ADMIN ROUTES */}
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="quizzes" element={<AdminQuizzes />} />
+          <Route path="questions" element={<AdminQuestions />} />
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="reports" element={<AdminReports />} />
+          <Route path="settings" element={<AdminSettings />} />
+        </Route>
+
+        {/* RESULTS */}
         <Route
           path="/result"
           element={<Result toggleTheme={toggleTheme} dark={dark} />}
