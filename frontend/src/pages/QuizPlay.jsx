@@ -58,7 +58,8 @@ export default function QuizPlay() {
     socket.on("timerFinished", () => {
       setTimeLeft(0);
       setIsTimeUp(true);
-      // Logic nộp bài sẽ nằm ở Task 76
+      // Task 76: Tự động nộp bài ngay khi hết giờ
+      handleSubmit(true); 
     });
 
     return () => {
