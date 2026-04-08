@@ -6,6 +6,8 @@ const ATTEMPTS_API = "/attempts";
 // ===== QUIZ OPERATIONS =====
 export const getQuizzes = () => api.get(API_BASE);
 
+export const getMyQuizzes = () => api.get(`${API_BASE}/my-quizzes`);
+
 export const getQuizById = (id) => api.get(`${API_BASE}/${id}`);
 
 export const createQuiz = (data) => api.post(API_BASE, data);
@@ -37,8 +39,8 @@ export const submitAllAnswers = (attemptId, answers) =>
   api.put(`${ATTEMPTS_API}/${attemptId}/answers`, { answers });
 
 // Nộp bài (hoàn thiện và tính điểm) - DÙNG CHO BACKEND HIỆN TẠI
-export const submitQuiz = (quizId, answers) =>
-  api.post(`${API_BASE}/${quizId}/submit`, { answers });
+export const submitQuiz = (quizId, answers, guestInfo = null) =>
+  api.post(`${API_BASE}/${quizId}/submit`, { answers, guestInfo });
 
 // Nộp bài (hoàn thiện và tính điểm)
 export const submitAttempt = (attemptId) =>

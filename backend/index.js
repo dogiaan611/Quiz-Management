@@ -35,6 +35,7 @@ app.use("/api/auth", require("./src/routes/authRoutes"));
 app.use("/api/quizzes", require("./src/routes/quizRoutes"));
 app.use("/api/questions", require("./src/routes/questionRoutes"));
 app.use("/api/attempts", require("./src/routes/attemptRoutes"));
+app.use("/api/admin", require("./src/routes/adminRoutes"));
 
 // Health check
 app.get("/", (req, res) => {

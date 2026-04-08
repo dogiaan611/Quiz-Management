@@ -19,7 +19,7 @@ export default function GoogleAuthCallback() {
                 localStorage.setItem("user", JSON.stringify(user));
                 
                 // Điều hướng theo role
-                if (user.role === "admin") {
+                if (user.role === "admin" || user.role === "teacher") {
                     navigate("/admin/dashboard");
                 } else {
                     navigate("/user/dashboard");

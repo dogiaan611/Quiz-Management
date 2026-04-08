@@ -163,8 +163,8 @@ const joinQuiz = async (req, res) => {
 const submitQuiz = async (req, res) => {
     try {
         const { quizId } = req.params;
-        const { answers } = req.body;
-        const userId = req.user.id;
+        const { answers, guestInfo } = req.body;
+        const userId = req.user ? req.user.id : null;
 
         const quiz = await Quiz.findById(quizId);
         if (!quiz) return res.status(404).json({ message: "Không tìm thấy Quiz." });
@@ -189,16 +189,26 @@ const submitQuiz = async (req, res) => {
             ? ((correctCount / quiz.questions.length) * 10).toFixed(2) 
             : 0;
 
-        const attempt = await Attempt.create({
+        const attemptData = {
             quiz_id: quizId,
-            user_id: userId,
             total_questions: quiz.questions.length,
             correct_answers: correctCount,
             score: parseFloat(score),
             status: "submitted",
             submitted_at: new Date(),
             answers: processedAnswers
-        });
+        };
+
+        if (userId) {
+            attemptData.user_id = userId;
+        } else if (guestInfo) {
+            attemptData.guest_name = guestInfo.name;
+            attemptData.guest_email = guestInfo.email;
+        } else {
+            return res.status(400).json({ message: "Thiếu thông tin người làm bài." });
+        }
+
+        const attempt = await Attempt.create(attemptData);
 
         return res.status(201).json({ 
             message: "Nộp bài thành công",
@@ -240,6 +250,64 @@ const getAttemptResult = async (req, res) => {
     }
 };
 
+/**
+ * Lấy các quiz do chính user hiện tại tạo
+ */
+const getMyQuizzes = async (req, res) => {
+    try {
+        const quizzes = await Quiz.find({ created_by: req.user.id }).populate("created_by", "username");
+        return res.status(200).json({ quizzes });
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi server" });
+    }
+};
+
+/**
+ * Cập nhật quiz
+ */
+const updateQuiz = async (req, res) => {
+    try {
+        const { quizId } = req.params;
+        const quiz = await Quiz.findById(quizId);
+        
+        if (!quiz) return res.status(404).json({ message: "Không tìm thấy quiz." });
+        
+        // Chỉ chủ sở hữu hoặc admin mới được sửa
+        if (quiz.created_by.toString() !== req.user.id && req.user.role !== "admin") {
+            return res.status(403).json({ message: "Bạn không có quyền sửa quiz này." });
+        }
+
+        const updatedQuiz = await Quiz.findByIdAndUpdate(quizId, req.body, { new: true });
+        return res.status(200).json({ message: "Cập nhật thành công", quiz: updatedQuiz });
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi server" });
+    }
+};
+
+/**
+ * Xóa quiz
+ */
+const deleteQuiz = async (req, res) => {
+    try {
+        const { quizId } = req.params;
+        const quiz = await Quiz.findById(quizId);
+        
+        if (!quiz) return res.status(404).json({ message: "Không tìm thấy quiz." });
+        
+        if (quiz.created_by.toString() !== req.user.id && req.user.role !== "admin") {
+            return res.status(403).json({ message: "Bạn không có quyền xóa quiz này." });
+        }
+
+        await Quiz.findByIdAndDelete(quizId);
+        // Xóa các câu hỏi liên quan hoặc xử lý logic cascade nếu cần
+        await Question.deleteMany({ _id: { $in: quiz.questions } });
+        
+        return res.status(200).json({ message: "Xóa quiz thành công" });
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi server" });
+    }
+};
+
 module.exports = {
     createQuiz,
     addQuestionsToQuiz,
@@ -248,5 +316,8 @@ module.exports = {
     checkQuizCode,
     joinQuiz,
     submitQuiz,
-    getAttemptResult
+    getAttemptResult,
+    getMyQuizzes,
+    updateQuiz,
+    deleteQuiz
 };

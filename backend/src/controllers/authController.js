@@ -140,4 +140,47 @@ const googleCallback = (req, res, next) => {
     })(req, res, next);
 };
 
-module.exports = { register, login, googleAuth, googleCallback };
+const getMe = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).select("-password");
+        if (!user) return res.status(404).json({ message: "User not found" });
+        return res.status(200).json(user);
+    } catch (error) {
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+const getUserStats = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const totalAttempts = await Attempt.countDocuments({ user_id: userId, status: "submitted" });
+        
+        const recentAttempts = await Attempt.find({ user_id: userId, status: "submitted" })
+            .sort({ submitted_at: -1 })
+            .limit(5)
+            .populate("quiz_id", "title");
+
+        const avgScoreResult = await Attempt.aggregate([
+            { $match: { user_id: userId, status: "submitted" } },
+            { $group: { _id: null, avg: { $avg: "$score" } } }
+        ]);
+        const avgScore = avgScoreResult.length > 0 ? avgScoreResult[0].avg.toFixed(1) : 0;
+
+        return res.status(200).json({
+            totalAttempts,
+            avgScore,
+            recentAttempts
+        });
+    } catch (error) {
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+module.exports = {
+    register,
+    login,
+    googleAuth,
+    googleCallback,
+    getMe,
+    getUserStats
+};

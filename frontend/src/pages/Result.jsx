@@ -12,11 +12,14 @@ export default function Result() {
   //--------------------------------
   // LẤY DATA
   //--------------------------------
-  const user = JSON.parse(sessionStorage.getItem("quizUser"));
+  const storedUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
+  const guestUser = JSON.parse(sessionStorage.getItem("guestUser") || "null");
+  const user = storedUser || guestUser;
+  
   const result = JSON.parse(sessionStorage.getItem("quizResult"));
 
   //--------------------------------
-  // REDIRECT SAFE (KHÔNG GÂY LOOP)
+  // REDIRECT SAFE
   //--------------------------------
   useEffect(() => {
     if (!user || !result) {
@@ -93,12 +96,8 @@ export default function Result() {
               </h1>
 
               {/* USER */}
-              <p className="mt-3 font-semibold">
-                {user.name}
-              </p>
-
-              <p className="text-xs text-muted-foreground">
-                PIN: {user.pin}
+              <p className="mt-3 font-semibold text-lg text-indigo-600">
+                {user.username || user.name}
               </p>
 
               {user.email && (
@@ -212,10 +211,16 @@ export default function Result() {
               <Button
                 className="flex-1 h-12 rounded-xl font-semibold"
                 variant="outline"
-                onClick={() => navigate("/")}
+                onClick={() => {
+                  if (storedUser) {
+                    navigate(storedUser.role === "admin" ? "/admin/dashboard" : "/user/dashboard");
+                  } else {
+                    navigate("/");
+                  }
+                }}
               >
                 <Home size={18} className="mr-2" />
-                Trang chủ
+                {storedUser ? "Bảng điều khiển" : "Trang chủ"}
               </Button>
 
               <Button

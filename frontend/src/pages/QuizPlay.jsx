@@ -31,11 +31,14 @@ export default function QuizPlay() {
   ============================== */
   useEffect(() => {
     const storedUser = sessionStorage.getItem("user") || localStorage.getItem("user");
-    if (!storedUser) {
+    const guestUser = sessionStorage.getItem("guestUser");
+    
+    if (!storedUser && !guestUser) {
       navigate("/login");
       return;
     }
-    setUser(JSON.parse(storedUser));
+    
+    setUser(storedUser ? JSON.parse(storedUser) : JSON.parse(guestUser));
   }, [navigate]);
 
   /* =============================
@@ -130,7 +133,8 @@ export default function QuizPlay() {
         };
       }).filter(ans => ans.answer_id !== null);
 
-      const { data } = await submitQuiz(id, formattedAnswers);
+      const guestUser = JSON.parse(sessionStorage.getItem("guestUser") || "{}");
+      const { data } = await submitQuiz(id, formattedAnswers, guestUser.isGuest ? guestUser : null);
 
       // Dọn dẹp cache
       localStorage.removeItem(`quizAnswers_${id}`);

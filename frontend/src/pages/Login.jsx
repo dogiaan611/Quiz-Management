@@ -25,7 +25,7 @@ export default function Login() {
       localStorage.setItem("user", JSON.stringify(data.user));
 
       // Điều hướng theo role
-      if (data.user.role === "admin") {
+      if (data.user.role === "admin" || data.user.role === "teacher") {
         navigate("/admin/dashboard");
       } else {
         navigate("/user/dashboard");

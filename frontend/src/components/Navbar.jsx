@@ -86,28 +86,45 @@ export default function Navbar() {
             {theme === "dark" ? "☀️ Light" : "🌙 Dark"}
           </button>
 
-          {/* Login */}
-          <Link
-            to="/login"
-            className="
-              px-6 py-2.5
-              rounded-xl
-              bg-gradient-to-r
-              from-indigo-600
-              to-purple-600
-              hover:from-indigo-500
-              hover:to-purple-500
-              text-white
-              transition-all duration-300
-              shadow-lg shadow-indigo-500/20
-              font-semibold
-              hover:scale-105
-              active:scale-95
-            "
-          >
-            Đăng nhập
-          </Link>
-
+          {/* Dynamic Action Button */}
+          {JSON.parse(localStorage.getItem("user")) ? (
+            <Link
+              to={JSON.parse(localStorage.getItem("user")).role === "admin" ? "/admin/dashboard" : "/user/dashboard"}
+              className="
+                px-6 py-2.5
+                rounded-xl
+                bg-indigo-600
+                text-white
+                font-semibold
+                hover:scale-105
+                active:scale-95
+                transition-all
+              "
+            >
+              Dashboard
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="
+                px-6 py-2.5
+                rounded-xl
+                bg-gradient-to-r
+                from-indigo-600
+                to-purple-600
+                hover:from-indigo-500
+                hover:to-purple-500
+                text-white
+                transition-all duration-300
+                shadow-lg shadow-indigo-500/20
+                font-semibold
+                hover:scale-105
+                active:scale-95
+              "
+            >
+              Đăng nhập
+            </Link>
+          )}
         </div>
       </div>
     </motion.nav>

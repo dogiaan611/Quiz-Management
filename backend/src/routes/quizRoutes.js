@@ -8,18 +8,30 @@ const {
     checkQuizCode,
     joinQuiz,
     submitQuiz,
-    getAttemptResult
+    getAttemptResult,
+    getMyQuizzes,
+    updateQuiz,
+    deleteQuiz
 } = require("../controllers/quizController");
 
 const { authenticate, authorize } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
-// 🔹 Lấy tất cả quiz
+// 🔹 Lấy tất cả quiz (Công khai)
 router.get("/", getAllQuizzes);
+
+// 🔹 Lấy quiz của tôi (dành cho GV)
+router.get("/my-quizzes", authenticate, authorize("admin", "teacher"), getMyQuizzes);
 
 // 🔹 Lấy chi tiết quiz
 router.get("/:quizId", getQuizById);
+
+// 🔹 Cập nhật quiz
+router.put("/:quizId", authenticate, authorize("admin", "teacher"), updateQuiz);
+
+// 🔹 Xóa quiz
+router.delete("/:quizId", authenticate, authorize("admin", "teacher"), deleteQuiz);
 
 // 🔹 Tạo quiz
 router.post(
@@ -60,7 +72,13 @@ router.post(
 // 🔥 NỘP BÀI THI
 router.post(
     "/:quizId/submit",
-    authenticate,
+    (req, res, next) => {
+        // Nếu có Authorization header thì check token, nếu không thì cho qua (guest)
+        if (req.headers.authorization) {
+            return authenticate(req, res, next);
+        }
+        next();
+    },
     submitQuiz
 );
 

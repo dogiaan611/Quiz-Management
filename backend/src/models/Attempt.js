@@ -10,7 +10,15 @@ const attemptSchema = new mongoose.Schema(
         user_id: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
-            required: true,
+            required: false, // Thay đổi thành false cho Guest
+        },
+        guest_name: {
+            type: String,
+            default: null
+        },
+        guest_email: {
+            type: String,
+            default: null
         },
         started_at: {
             type: Date,

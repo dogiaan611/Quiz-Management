@@ -13,9 +13,15 @@ import GoogleAuthCallback from "./pages/GoogleAuthCallback";
 import UserLayout from "./pages/user/UserLayout";
 import UserDashboard from "./pages/user/UserDashboard";
 import UserQuizzes from "./pages/user/UserQuizzes";
+import UserHistory from "./pages/user/UserHistory";
+import UserLeaderboard from "./pages/user/UserLeaderboard";
+import UserProfile from "./pages/user/UserProfile";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminQuizzes from "./pages/admin/AdminQuizzes";
+import AdminCreateQuiz from "./pages/admin/AdminCreateQuiz";
+import AdminDiscovery from "./pages/admin/AdminDiscovery";
+import AdminQuizDetail from "./pages/admin/AdminQuizDetail";
 import AdminQuestions from "./pages/admin/AdminQuestions";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminReports from "./pages/admin/AdminReports";
@@ -98,12 +104,18 @@ function App() {
         <Route path="/user" element={<UserLayout />}>
           <Route path="dashboard" element={<UserDashboard />} />
           <Route path="quizzes" element={<UserQuizzes />} />
+          <Route path="history" element={<UserHistory />} />
+          <Route path="leaderboard" element={<UserLeaderboard />} />
+          <Route path="profile" element={<UserProfile />} />
         </Route>
 
         {/* ADMIN ROUTES */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="quizzes" element={<AdminQuizzes />} />
+          <Route path="quizzes/create" element={<AdminCreateQuiz />} />
+          <Route path="discovery" element={<AdminDiscovery />} />
+          <Route path="quizzes/:id" element={<AdminQuizDetail />} />
           <Route path="questions" element={<AdminQuestions />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="reports" element={<AdminReports />} />

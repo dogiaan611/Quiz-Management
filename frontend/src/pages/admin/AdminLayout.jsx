@@ -10,7 +10,8 @@ import {
   Settings,
   Bell,
   Search,
-  ChevronDown
+  ChevronDown,
+  Plus
 } from "lucide-react";
 
 export default function AdminLayout() {
@@ -24,8 +25,10 @@ export default function AdminLayout() {
 
   const menu = [
     { name: "Bảng điều khiển", path: "/admin/dashboard", icon: <LayoutDashboard size={18} /> },
+    { name: "Tạo đề mới", path: "/admin/quizzes/create", icon: <Plus size={18} className="text-emerald-500" /> },
+    { name: "Quản lý của tôi", path: "/admin/quizzes", icon: <FileText size={18} /> },
+    { name: "Tất cả bài thi", path: "/admin/discovery", icon: <LogOut size={18} className="rotate-90 text-slate-400" /> },
     { name: "Người dùng", path: "/admin/users", icon: <Users size={18} /> },
-    { name: "Bài Quiz", path: "/admin/quizzes", icon: <FileText size={18} /> },
     { name: "Câu hỏi", path: "/admin/questions", icon: <HelpCircle size={18} /> },
     { name: "Báo cáo", path: "/admin/reports", icon: <BarChart3 size={18} /> },
     { name: "Cài đặt", path: "/admin/settings", icon: <Settings size={18} /> }

@@ -1,8 +1,14 @@
 const express = require("express");
 const { body } = require("express-validator");
-const { register, login, googleAuth, googleCallback } = require("../controllers/authController");
+const { register, login, googleAuth, googleCallback, getMe, getUserStats } = require("../controllers/authController");
+const { authenticate } = require("../middlewares/authMiddleware");
+
+// ... (existing routes)
 
 const router = express.Router();
+
+router.get("/me", authenticate, getMe);
+router.get("/stats", authenticate, getUserStats);
 
 router.post(
     "/register",

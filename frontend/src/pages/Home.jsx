@@ -4,8 +4,19 @@ import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
 import { useNavigate } from "react-router-dom";
 
+import { useEffect } from "react";
+
 export default function Home() {
   const navigate = useNavigate();
+
+  // Chuyển hướng nếu đã đăng nhập
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
+    if (user) {
+      if (user.role === "admin" || user.role === "teacher") navigate("/admin/dashboard");
+      else navigate("/user/dashboard");
+    }
+  }, [navigate]);
 
   return (
     <div
