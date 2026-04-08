@@ -7,7 +7,8 @@ const {
     getQuizById,
     checkQuizCode,
     joinQuiz,
-    submitQuiz
+    submitQuiz,
+    getAttemptResult
 } = require("../controllers/quizController");
 
 const { authenticate, authorize } = require("../middlewares/authMiddleware");
@@ -61,6 +62,13 @@ router.post(
     "/:quizId/submit",
     authenticate,
     submitQuiz
+);
+
+// 🔥 LẤY KẾT QUẢ BÀI LÀM
+router.get(
+    "/attempts/:attemptId",
+    authenticate,
+    getAttemptResult
 );
 
 module.exports = router;

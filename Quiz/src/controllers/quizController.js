@@ -254,6 +254,46 @@ const submitQuiz = async (req, res) => {
     }
 };
 
+/**
+ * 🔥 LẤY KẾT QUẢ BÀI LÀM CHI TIẾT
+ * GET /api/quizzes/attempts/:attemptId
+ */
+const getAttemptResult = async (req, res) => {
+    try {
+        const { attemptId } = req.params;
+        const userId = req.user.id;
+
+        const attempt = await Attempt.findById(attemptId)
+            .populate("quiz_id", "title description")
+            .populate({
+                path: "answers.question_id",
+                select: "content type image_url",
+            })
+            .populate({
+                path: "answers.answer_id",
+                select: "content is_correct",
+            });
+
+        if (!attempt) {
+            return res.status(404).json({ message: "Không tìm thấy kết quả bài làm này." });
+        }
+
+        // Bảo mật: Chỉ người làm bài hoặc Admin/Teacher mới có quyền xem
+        if (attempt.user_id.toString() !== userId && req.user.role === 'student') {
+            return res.status(403).json({ message: "Bạn không có quyền xem kết quả này." });
+        }
+
+        return res.status(200).json({
+            message: "Lấy kết quả thành công",
+            result: attempt
+        });
+
+    } catch (error) {
+        console.error("Get attempt result error:", error);
+        return res.status(500).json({ message: "Lỗi server khi lấy kết quả" });
+    }
+};
+
 module.exports = {
     createQuiz,
     addQuestionsToQuiz,
@@ -261,6 +301,6 @@ module.exports = {
     getQuizById,
     checkQuizCode,
     joinQuiz,
-    submitQuiz
-
+    submitQuiz,
+    getAttemptResult
 };
