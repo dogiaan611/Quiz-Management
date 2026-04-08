@@ -1,14 +1,15 @@
 const { Question, Answer, Quiz } = require("../models");
 const mongoose = require("mongoose");
+const xlsx = require("xlsx");
+const fs = require("fs");
 
 const createManualQuestion = async (req, res) => {
     try {
-        const { content, type, image_url, quiz_id, answers } = req.body;
-        const created_by = req.user.id;
+        const { content, type, image_url, quiz_id, created_by, answers } = req.body;
 
-        // 1. Kiểm tra các trường bắt buộc
-        if (!content || !answers || !Array.isArray(answers) || answers.length === 0) {
-            return res.status(400).json({ message: "Vui lòng cung cấp đầy đủ thông tin: content, answers." });
+        // 1. Kiểm tra các trường bắt buộc (Không bắt buộc quiz_id nữa)
+        if (!content || !created_by || !answers || !Array.isArray(answers) || answers.length === 0) {
+            return res.status(400).json({ message: "Vui lòng cung cấp đầy đủ thông tin: content, created_by, answers." });
         }
 
         // 2. Kiểm tra xem Quiz có tồn tại không (nếu có truyền quiz_id)
@@ -62,172 +63,126 @@ const createManualQuestion = async (req, res) => {
 
 
 /**
- * Lấy danh sách câu hỏi của một Quiz để phục vụ làm bài
- * GET /api/questions/quiz/:quizId
+ * Lấy danh sách câu hỏi của một Quiz (Optional feature)
  */
 const getQuizQuestions = async (req, res) => {
     try {
         const { quizId } = req.params;
-        const user = req.user;
-
-        // Tìm quiz và populate đầy đủ câu hỏi và câu trả lời
-        const quiz = await Quiz.findById(quizId)
-            .select("title description time_limit max_attempts questions is_published created_by")
-            .populate({
-                path: 'questions',
-                select: 'content type image_url', // lấy thông tin câu hỏi
-                populate: { 
-                    path: 'answers',
-                    select: 'content' // mặc định chỉ lấy content answers
-                }
-            });
+        const quiz = await Quiz.findById(quizId).populate({
+            path: 'questions',
+            populate: { path: 'answers' } // Cần định nghĩa virtual 'answers' trong Question model nếu muốn populate sâu
+        });
 
         if (!quiz) {
             return res.status(404).json({ message: "Không tìm thấy Quiz." });
         }
 
-        // Kiểm tra quyền: Nếu chưa publish thì chỉ cho phép teacher/admin xem
-        const isOwner = user && (user.role === 'admin' || user.role === 'teacher' || (quiz.created_by && quiz.created_by.toString() === user.id));
-        
-        if (!quiz.is_published && !isOwner) {
-            return res.status(403).json({ message: "Bài thi này chưa được công bố hoặc bạn không có quyền xem." });
-        }
-
-        let questions;
-        
-        // Hàm xáo trộn mảng (Fisher-Yates)
-        const shuffleArray = (array) => {
-            const newArr = [...array];
-            for (let i = newArr.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
-            }
-            return newArr;
-        };
-
-        // Nếu là GV hoặc admin muốn xem full (có đáp án đúng và không shuffle)
-        if (isOwner && req.query.showCorrect === 'true') {
-            const quizFull = await Quiz.findById(quizId)
-                .populate({
-                    path: 'questions',
-                    populate: { path: 'answers' } 
-                });
-            questions = quizFull.questions;
-        } else {
-            // Đối với SV làm bài: Xáo trộn cả CÂU HỎI và CÂU TRẢ LỜI
-            const rawQuestions = quiz.questions.map(q => {
-                const questionObj = q.toObject();
-                if (questionObj.answers && Array.isArray(questionObj.answers)) {
-                    questionObj.answers = shuffleArray(questionObj.answers);
-                }
-                return questionObj;
-            });
-            
-            // Random hóa thứ tự câu hỏi (Sprints 2 task: Tạo logic câu hỏi random)
-            questions = shuffleArray(rawQuestions);
-        }
-
-        return res.status(200).json({
-            quiz: {
-                _id: quiz._id,
-                title: quiz.title,
-                description: quiz.description,
-                time_limit: quiz.time_limit,
-                max_attempts: quiz.max_attempts
-            },
-            questions: questions
-        });
+        return res.status(200).json({ questions: quiz.questions });
     } catch (error) {
-        console.error("❌ ERROR GET QUIZ QUESTIONS:", error);
-        return res.status(500).json({ message: "Lỗi server khi lấy danh sách câu hỏi", error: error.message });
+        return res.status(500).json({ message: "Lỗi server", error: error.message });
     }
 };
 
 /**
  * API Upload file Excel (.xlsx)
  */
-/**
- * API Upload file Excel (.xlsx) và Import vào Database
- */
 const importQuestionsFromFile = async (req, res) => {
-    const xlsx = require("xlsx");
-    const fs = require("fs");
-    
     try {
         if (!req.file) {
             return res.status(400).json({ message: "Vui lòng chọn file để tải lên." });
         }
 
-        const { quiz_id } = req.body;
-        const created_by = req.user.id;
+        const { quiz_id, created_by } = req.body;
+        if (!created_by) {
+            return res.status(400).json({ message: "Vui lòng cung cấp mã người tạo (created_by)." });
+        }
 
-        // 1. Đọc file Excel
+        // Đọc file Excel từ đường dẫn tạm của Multer
         const workbook = xlsx.readFile(req.file.path);
-        const sheetName = workbook.SheetNames[0];
+        const sheetName = workbook.SheetNames[0]; // Lấy sheet đầu tiên
         const worksheet = workbook.Sheets[sheetName];
-        const data = xlsx.utils.sheet_to_json(worksheet);
+        
+        // Chuyển đổi dữ liệu sheet thành mảng JSON
+        const jsonData = xlsx.utils.sheet_to_json(worksheet);
 
-        if (!data || data.length === 0) {
+        if (jsonData.length === 0) {
             return res.status(400).json({ message: "File Excel trống hoặc không đúng định dạng." });
         }
 
-        const importedQuestions = [];
+        const stats = {
+            total: jsonData.length,
+            success: 0,
+            failed: 0
+        };
 
-        // 2. Lặp qua từng dòng để lưu vào DB
-        for (const row of data) {
+        const processedQuestions = [];
+
+        for (const row of jsonData) {
             const { question, A, B, C, D, correctAnswer } = row;
 
-            if (!question || !correctAnswer) continue;
+            // Kiểm tra tối thiểu phải có nội dung câu hỏi và đáp án đúng
+            if (!question || !correctAnswer) {
+                stats.failed++;
+                continue;
+            }
 
-            // Tạo Question
+            // 1. Tạo Question mới
             const newQuestion = await Question.create({
                 content: question,
-                type: "multiple_choice",
-                created_by
+                type: "multiple_choice", // Mặc định từ Excel là trắc nghiệm
+                created_by: created_by
             });
 
-            // Chuẩn bị Answers
-            const possibleAnswers = [
-                { content: A, label: "A" },
-                { content: B, label: "B" },
-                { content: C, label: "C" },
-                { content: D, label: "D" }
-            ].filter(ans => ans.content); // Chỉ lấy những câu trả lời có nội dung
-
-            const answersToInsert = possibleAnswers.map(ans => ({
+            // 2. Chuyển đổi các cột A, B, C, D thành bản ghi Answer
+            const answersToInsert = [
+                { content: A, key: "A" },
+                { content: B, key: "B" },
+                { content: C, key: "C" },
+                { content: D, key: "D" }
+            ]
+            .filter(ans => ans.content) // Chỉ lấy các đáp án có nội dung
+            .map(ans => ({
                 question_id: newQuestion._id,
                 content: ans.content,
-                is_correct: ans.label === correctAnswer
+                is_correct: String(correctAnswer).trim().toUpperCase() === ans.key
             }));
 
             await Answer.insertMany(answersToInsert);
-            importedQuestions.push(newQuestion._id);
-        }
 
-        // 3. Nếu có quiz_id, gán vào Quiz
-        if (quiz_id && importedQuestions.length > 0) {
-            const quiz = await Quiz.findById(quiz_id);
-            if (quiz) {
-                quiz.questions.push(...importedQuestions);
-                await quiz.save();
+            // 3. Nếu có quiz_id, hãy thêm câu hỏi này vào Quiz đó
+            if (quiz_id && mongoose.Types.ObjectId.isValid(quiz_id)) {
+                await Quiz.findByIdAndUpdate(quiz_id, {
+                    $push: { questions: newQuestion._id }
+                });
             }
+
+            processedQuestions.push(newQuestion._id);
+            stats.success++;
         }
 
-        // 4. Xóa file tạm sau khi xử lý xong
-        fs.unlinkSync(req.file.path);
+        // Xóa file sau khi đã xử lý xong để giải phóng bộ nhớ tạm
+        if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
 
-        return res.status(200).json({
-            message: `Import thành công ${importedQuestions.length} câu hỏi.`,
+        return res.status(201).json({
+            message: `Xử lý file hoàn tất. Thành công: ${stats.success}, Thất bại: ${stats.failed}`,
+            stats,
             quiz_id: quiz_id || null
         });
 
     } catch (error) {
-        console.error("❌ ERROR IMPORTING FROM FILE:", error);
-        // Xóa file nếu có lỗi xảy ra
+        console.error("❌ ERROR IMPORTING FROM EXCEL:", error);
+        
+        // Cố gắng xóa file nếu có lỗi xảy ra
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
         }
-        return res.status(500).json({ message: "Lỗi server khi import file.", error: error.message });
+
+        return res.status(500).json({ 
+            message: "Lỗi server khi nhập câu hỏi từ Excel.", 
+            error: error.message 
+        });
     }
 };
 
@@ -235,7 +190,6 @@ const importQuestionsFromFile = async (req, res) => {
  * API Tải file Excel mẫu (.xlsx)
  */
 const downloadTemplate = (req, res) => {
-    const xlsx = require("xlsx");
     try {
         const data = [
             {
