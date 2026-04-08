@@ -1,4 +1,4 @@
-const { Quiz } = require("../models");
+const { Quiz, Attempt } = require("../models");
 const { validationResult } = require("express-validator");
 const crypto = require("crypto");
 
@@ -189,16 +189,32 @@ const joinQuiz = async (req, res) => {
 const submitQuiz = async (req, res) => {
     try {
         const { quizId } = req.params;
-        const answers = req.body.answers; // Dự kiến mảng các câu trả lời
+        const { answers } = req.body; // Mảng: [{ question_id, answer_id }]
         const userId = req.user.id;
 
-        // Task 31 & 32 sẽ thực hiện logic lưu và tính điểm ở đây
+        // 1. Kiểm tra Quiz có tồn tại không
+        const quiz = await Quiz.findById(quizId);
+        if (!quiz) {
+            return res.status(404).json({ message: "Không tìm thấy Quiz này." });
+        }
+
+        // 2. Tạo bản ghi Attempt mới (Lưu câu trả lời - Task 31)
+        const attempt = await Attempt.create({
+            quiz_id: quizId,
+            user_id: userId,
+            total_questions: quiz.questions.length,
+            status: "submitted",
+            submitted_at: new Date(),
+            answers: answers || []
+        });
+
+        // Task 32: Tính toán điểm sẽ được thực hiện ở bước sau
         
-        return res.status(200).json({ 
-            message: "Nộp bài thành công (Placeholder)",
-            quizId,
-            userId,
-            receivedAnswers: answers
+        return res.status(201).json({ 
+            message: "Đã lưu câu trả lời thành công",
+            attempt_id: attempt._id,
+            total_questions: attempt.total_questions,
+            status: attempt.status
         });
     } catch (error) {
         console.error("Submit quiz error:", error);
