@@ -115,95 +115,102 @@ const importQuestionsFromFile = async (req, res) => {
             failed: 0
         };
 
-        const importedData = []; 
+        const importResults = []; // Danh sách phân loại Hợp lệ và Không hợp lệ
 
-        for (const row of jsonData) {
+        for (let i = 0; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            const rowIndex = i + 2; // Số thứ tự dòng trong Excel (thường bắt đầu từ 2)
             const { question, A, B, C, D, correctAnswer } = row;
 
-            // 1. Kiểm tra Question (Bắt buộc)
+            // --- 1. KIỂM TRA LỖI (VALIDATION) ---
+            let error = null;
+
             if (!question || String(question).trim().length === 0) {
+                error = "Nội dung câu hỏi không được để trống";
+            } else {
+                const availableOptions = [
+                    { key: "A", content: A },
+                    { key: "B", content: B },
+                    { key: "C", content: C },
+                    { key: "D", content: D }
+                ].filter(opt => opt.content && String(opt.content).trim().length > 0);
+
+                if (availableOptions.length < 2) {
+                    error = "Phải có ít nhất 2 phương án trả lời";
+                } else {
+                    const validCorrectAnswer = String(correctAnswer || "").trim().toUpperCase();
+                    const isAnswerExists = availableOptions.some(opt => opt.key === validCorrectAnswer);
+                    
+                    if (!correctAnswer || !isAnswerExists) {
+                        error = `Đáp án đúng "${correctAnswer}" không tồn tại trong các lựa chọn A, B, C, D`;
+                    }
+                }
+            }
+
+            // --- 2. XỬ LÝ THEO KẾT QUẢ KIỂM TRA ---
+            if (error) {
                 stats.failed++;
+                importResults.push({
+                    row: rowIndex,
+                    status: "failed",
+                    question: question || "(Bỏ trống)",
+                    error: error
+                });
                 continue;
             }
 
-            // 2. Kiểm tra Options (Phải có ít nhất 2 options trở lên)
-            const availableOptions = [
+            // --- 3. NẾU HỢP LỆ -> LƯU VÀO DATABASE ---
+            const validOptions = [
                 { key: "A", content: A },
                 { key: "B", content: B },
                 { key: "C", content: C },
                 { key: "D", content: D }
             ].filter(opt => opt.content && String(opt.content).trim().length > 0);
 
-            if (availableOptions.length < 2) {
-                stats.failed++;
-                continue;
-            }
-
-            // 3. Kiểm tra đáp án đúng (Bắt buộc và phải nằm trong các Key hiện có)
-            const validCorrectAnswer = String(correctAnswer).trim().toUpperCase();
-            const isAnswerExists = availableOptions.some(opt => opt.key === validCorrectAnswer);
-
-            if (!correctAnswer || !isAnswerExists) {
-                stats.failed++;
-                continue;
-            }
-
-            // --- ĐÃ VƯỢT QUA KIỂM TRA -> Chuyển thành Object sạch ---
-            const questionObject = {
-                question: String(question).trim(),
-                options: availableOptions,
-                correctAnswer: validCorrectAnswer
-            };
-
-            // 1. Lưu Question vào Database
             const newQuestion = await Question.create({
-                content: questionObject.question,
+                content: String(question).trim(),
                 type: "multiple_choice",
                 created_by: created_by
             });
 
-            // 2. Lưu Answer vào Database dựa trên mảng options đã gộp
-            const answersToInsert = questionObject.options.map(opt => ({
+            const answersToInsert = validOptions.map(opt => ({
                 question_id: newQuestion._id,
                 content: opt.content,
-                is_correct: opt.key === questionObject.correctAnswer
+                is_correct: opt.key === String(correctAnswer || "").trim().toUpperCase()
             }));
 
             await Answer.insertMany(answersToInsert);
 
-            // 3. Gán vào Quiz (nếu có)
             if (quiz_id && mongoose.Types.ObjectId.isValid(quiz_id)) {
                 await Quiz.findByIdAndUpdate(quiz_id, {
                     $push: { questions: newQuestion._id }
                 });
             }
 
-            importedData.push(questionObject);
             stats.success++;
+            importResults.push({
+                row: rowIndex,
+                status: "success",
+                question: question,
+                question_id: newQuestion._id
+            });
         }
 
-        if (fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
-
-        return res.status(201).json({
-            message: "Đã chuyển đổi Excel thành Object và lưu thành công!",
-            stats,
-            data: importedData // Trả về danh sách Object question, options, correctAnswer
-        });
-
-    } catch (error) {
-        console.error("❌ ERROR IMPORTING FROM EXCEL:", error);
-        
-        // Cố gắng xóa file nếu có lỗi xảy ra
+        // 4. Xóa file sau khi xử lý xong
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
         }
 
-        return res.status(500).json({ 
-            message: "Lỗi server khi nhập câu hỏi từ Excel.", 
-            error: error.message 
+        return res.status(201).json({
+            message: "Xử lý file Excel hoàn tất!",
+            stats: stats,
+            details: importResults
         });
+
+    } catch (error) {
+        console.error("❌ ERROR IMPORTING FROM EXCEL:", error);
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        return res.status(500).json({ message: "Lỗi server khi nạp file", error: error.message });
     }
 };
 
