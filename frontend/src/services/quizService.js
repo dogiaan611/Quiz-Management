@@ -52,6 +52,10 @@ export const getAttemptById = (attemptId) =>
 export const getAttemptAnswers = (attemptId) =>
   api.get(`${ATTEMPTS_API}/${attemptId}/answers`);
 
+// Lấy dữ liệu review chi tiết (điểm + đáp án đúng/sai từng câu)
+export const getAttemptReview = (attemptId) =>
+  api.get(`${ATTEMPTS_API}/${attemptId}/review`);
+
 // Lấy danh sách lần làm bài của user
 export const getUserAttempts = (userId) =>
   api.get(`${ATTEMPTS_API}/user/${userId}`);
