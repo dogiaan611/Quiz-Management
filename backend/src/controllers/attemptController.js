@@ -427,6 +427,7 @@ const getAttemptReview = async (req, res) => {
         // Định dạng dữ liệu trả về cho Frontend
         const reviewData = {
             overview: {
+                quiz_id: attempt.quiz_id._id,
                 quiz_title: attempt.quiz_id.title,
                 score: attempt.score,
                 total_questions: attempt.total_questions,

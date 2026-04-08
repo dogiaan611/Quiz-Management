@@ -1,15 +1,9 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import {
-  LayoutDashboard,
-  Users,
   LogOut,
   FileText,
   HelpCircle,
-  BarChart3,
-  Settings,
-  Bell,
-  Search,
   ChevronDown
 } from "lucide-react";
 
@@ -19,16 +13,10 @@ export default function AdminLayout() {
   const navigate = useNavigate();
 
   const [openProfile, setOpenProfile] = useState(false);
-  const [search, setSearch] = useState("");
-  const [notFound, setNotFound] = useState("");
 
   const menu = [
-    { name: "Bảng điều khiển", path: "/admin/dashboard", icon: <LayoutDashboard size={18} /> },
-    { name: "Người dùng", path: "/admin/users", icon: <Users size={18} /> },
-    { name: "Bài Quiz", path: "/admin/quizzes", icon: <FileText size={18} /> },
+    { name: "Quiz", path: "/admin/quizzes", icon: <FileText size={18} /> },
     { name: "Câu hỏi", path: "/admin/questions", icon: <HelpCircle size={18} /> },
-    { name: "Báo cáo", path: "/admin/reports", icon: <BarChart3 size={18} /> },
-    { name: "Cài đặt", path: "/admin/settings", icon: <Settings size={18} /> }
   ];
 
   const logout = () => {
@@ -36,68 +24,47 @@ export default function AdminLayout() {
     window.location.href = "/login";
   };
 
-  const handleSearch = (e) => {
-    if (e.key === "Enter") {
-
-      const keyword = search.toLowerCase();
-
-      const result = menu.find(item =>
-        item.name.toLowerCase().includes(keyword)
-      );
-
-      if (result) {
-        navigate(result.path);
-        setNotFound("");
-      } else {
-        setNotFound("Không có kết quả");
-      }
-    }
-  };
-
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-[#F8FAFC]"> {/* Slate-50 background for premium look */}
 
       {/* SIDEBAR */}
-      <aside className="w-64 bg-indigo-800 text-white flex flex-col justify-between shadow-lg">
+      <aside className="w-72 bg-slate-900 text-white flex flex-col justify-between shadow-2xl z-20">
 
         <div>
-
-          <div className="p-6 text-2xl font-bold border-b border-indigo-600">
-            ADMIN QUIZ 5AT
+          <div className="p-8 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <FileText size={20} className="text-white" />
+              </div>
+              <span className="text-xl font-black tracking-tighter uppercase italic">Quiz Admin</span>
+            </div>
           </div>
 
-          <nav className="p-4 space-y-2">
-
+          <nav className="px-4 space-y-2">
             {menu.map((item) => {
-
-              const isActive = location.pathname === item.path;
-
+              const isActive = location.pathname.startsWith(item.path);
               return (
                 <Link
                   key={item.name}
                   to={item.path}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition
-                  ${
-                    isActive
-                      ? "bg-white text-indigo-700"
-                      : "text-white hover:bg-indigo-700"
-                  }`}
+                  className={`flex items-center gap-4 px-6 py-4 rounded-2xl text-sm font-bold transition-all duration-200
+                  ${isActive
+                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 translate-x-1"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                    }`}
                 >
                   {item.icon}
                   {item.name}
                 </Link>
               );
-
             })}
-
           </nav>
-
         </div>
 
-        <div className="p-4 border-t border-indigo-600">
+        <div className="p-6 border-t border-slate-800">
           <button
             onClick={logout}
-            className="flex items-center gap-2 text-white hover:text-red-400 text-sm"
+            className="w-full flex items-center gap-3 px-6 py-4 rounded-2xl text-slate-400 hover:bg-rose-500/10 hover:text-rose-500 font-bold transition-all duration-200"
           >
             <LogOut size={18} />
             Đăng xuất
@@ -106,119 +73,29 @@ export default function AdminLayout() {
 
       </aside>
 
-
       {/* MAIN */}
-      <div className="flex-1 flex flex-col">
-
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* HEADER */}
-        <header className="bg-white border-b px-8 py-4 flex justify-between items-center">
+        <header className="h-24 bg-white/80 backdrop-blur-md border-b border-slate-100 px-12 flex justify-between items-center z-10">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Hệ thống quản trị</p>
+            <h1 className="text-xl font-black text-slate-900">
+              {menu.find(m => location.pathname.startsWith(m.path))?.name || "Dashboard"}
+            </h1>
+          </div>
 
           <div className="flex items-center gap-6">
-
-            <h1 className="text-xl font-bold text-gray-800">
-              Bảng điều khiển quản trị
-            </h1>
-
-            {/* SEARCH */}
-            <div className="relative hidden md:block">
-
-              <Search
-                size={16}
-                className="absolute left-3 top-2.5 text-gray-400"
-              />
-
-              <input
-                type="text"
-                placeholder="Tìm kiếm..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={handleSearch}
-                className="border rounded-lg pl-9 pr-4 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-
-              {notFound && (
-                <div className="absolute mt-2 bg-red-100 text-red-600 px-3 py-1 rounded text-sm shadow">
-                  {notFound}
-                </div>
-              )}
-
+            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">A</div>
+              <span className="text-sm font-bold text-slate-700">Admin</span>
             </div>
-
           </div>
-
-
-          {/* RIGHT */}
-          <div className="flex items-center gap-4">
-
-            <button className="relative p-2 rounded-lg text-gray-600 hover:text-indigo-600 hover:bg-gray-100 transition">
-              <Bell size={18} />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
-
-            {/* PROFILE */}
-            <div className="relative">
-
-              <div
-                onClick={() => setOpenProfile(!openProfile)}
-                className="flex items-center gap-3 cursor-pointer"
-              >
-
-                <div className="text-sm text-gray-600 hidden sm:block">
-                  Xin chào 👋
-                  <span className="font-semibold ml-1">
-                    Quản trị viên
-                  </span>
-                </div>
-
-                <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold">
-                  A
-                </div>
-
-                <ChevronDown size={16} />
-
-              </div>
-
-              {openProfile && (
-
-              <div className="absolute right-0 mt-3 w-44 bg-white rounded-lg shadow-lg border">
-
-                <button className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100 text-sm">
-                  Hồ sơ
-                </button>
-
-                <button className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100 text-sm">
-                  Cài đặt
-                </button>
-
-                <button
-                  onClick={logout}
-                  className="w-full text-left px-4 py-2 text-red-500 hover:bg-gray-100 text-sm"
-                >
-                  Đăng xuất
-                </button>
-
-              </div>
-
-            )}
-
-            </div>
-
-          </div>
-
         </header>
 
-
         {/* CONTENT */}
-        <main className="flex-1 p-8">
-
-          <div className="bg-white rounded-xl shadow border p-8">
-
-            <Outlet />
-
-          </div>
-
+        <main className="flex-1 p-12 overflow-y-auto">
+          <Outlet />
         </main>
-
       </div>
 
     </div>

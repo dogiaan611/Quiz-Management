@@ -226,4 +226,57 @@ const downloadTemplate = (req, res) => {
     } catch (error) { return res.status(500).send("Lỗi tạo mẫu."); }
 };
 
-module.exports = { createManualQuestion, getQuizQuestions, importQuestionsFromFile, downloadTemplate };
+/**
+ * Xoá câu hỏi
+ */
+const deleteQuestion = async (req, res) => {
+    try {
+        const { questionId } = req.params;
+        
+        const question = await Question.findById(questionId);
+        if (!question) return res.status(404).json({ message: "Không tìm thấy câu hỏi." });
+
+        // Bảo mật: Chỉ chủ sở hữu hoặc admin mới được xoá
+        if (question.created_by.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ message: "Bạn không có quyền xoá câu hỏi này." });
+        }
+
+        // 1. Xoá mọi đáp án liên quan
+        await Answer.deleteMany({ question_id: questionId });
+
+        // 2. Xoá khỏi danh sách questions của tất cả các Quiz
+        await Quiz.updateMany({}, { $pull: { questions: questionId } });
+
+        // 3. Xoá câu hỏi
+        await Question.findByIdAndDelete(questionId);
+
+        return res.status(200).json({ message: "Xoá câu hỏi thành công" });
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi xoá câu hỏi.", error: error.message });
+    }
+};
+
+/**
+ * Lấy tất cả câu hỏi của User (Ngân hàng câu hỏi cá nhân)
+ */
+const getAllQuestions = async (req, res) => {
+    try {
+        const created_by = req.user.id;
+        const questions = await Question.find({ created_by })
+            .populate("answers")
+            .sort({ createdAt: -1 });
+
+        return res.status(200).json({ questions });
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi lấy ngân hàng câu hỏi." });
+    }
+};
+
+module.exports = { 
+    createManualQuestion, 
+    getQuizQuestions, 
+    importQuestionsFromFile, 
+    downloadTemplate, 
+    deleteQuestion, 
+    getAllQuestions 
+};

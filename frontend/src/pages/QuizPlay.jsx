@@ -4,7 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, CheckCircle2, Flag, AlertCircle, Loader } from "lucide-react";
+import { Clock, CheckCircle2, Flag, AlertCircle, Loader, HelpCircle } from "lucide-react";
+import { Navigate } from "react-router-dom";
 import socket from "@/services/socket"; // Import socket
 import {
   getQuizById,
@@ -30,9 +31,14 @@ export default function QuizPlay() {
         1. LOAD USER & AUTH
   ============================== */
   useEffect(() => {
-    const storedUser = sessionStorage.getItem("user") || localStorage.getItem("user");
+    // Ưu tiên lấy quizUser (dành cho học sinh vào bằng mã PIN) trước, sau đó mới đến user (tài khoản đã đăng nhập)
+    const guestUser = sessionStorage.getItem("quizUser");
+    const loggedInUser = sessionStorage.getItem("user") || localStorage.getItem("user");
+    
+    const storedUser = guestUser || loggedInUser;
+
     if (!storedUser) {
-      navigate("/login");
+      navigate("/join"); // Nếu không có thông tin người dùng, về trang nhập mã
       return;
     }
     setUser(JSON.parse(storedUser));
@@ -42,11 +48,14 @@ export default function QuizPlay() {
         2. CONNECT SOCKET & JOIN ROOM
   ============================== */
   useEffect(() => {
-    if (!id) return;
+    if (!id || !user) return;
+
+    // Tạo định danh duy nhất cho user (ID nếu đã login, hoặc dùng PIN + Tên nếu là guest)
+    const userId = user.id || user._id || `${user.pin}_${user.name}`;
 
     socket.connect();
-    socket.emit("joinQuiz", id);
-    socket.emit("startQuiz", id);
+    socket.emit("joinQuiz", { quizId: id, userId });
+    socket.emit("startQuiz", { quizId: id, userId });
 
     // Lắng nghe cập nhật thời gian từ server
     socket.on("timerUpdate", (time) => {
@@ -58,7 +67,6 @@ export default function QuizPlay() {
     socket.on("timerFinished", () => {
       setTimeLeft(0);
       setIsTimeUp(true);
-      // Task 76: Tự động nộp bài ngay khi hết giờ
       handleSubmit(true); 
     });
 
@@ -67,7 +75,7 @@ export default function QuizPlay() {
       socket.off("timerFinished");
       socket.disconnect();
     };
-  }, [id]);
+  }, [id, user]);
 
   /* =============================
         3. FETCH QUIZ DATA
@@ -136,7 +144,17 @@ export default function QuizPlay() {
       localStorage.removeItem(`quizAnswers_${id}`);
       localStorage.removeItem(`quizTime_${id}`);
 
+      // Đảm bảo trang Kết quả có thông tin user để hiển thị (tránh bị đá về trang join)
+      if (!sessionStorage.getItem("quizUser")) {
+        sessionStorage.setItem("quizUser", JSON.stringify({
+          name: user.name || user.username || "Người dùng",
+          pin: quiz.access_code || "N/A",
+          email: user.email || ""
+        }));
+      }
+
       sessionStorage.setItem("quizResult", JSON.stringify({
+        quizId: id,
         attemptId: data.attempt._id || data.attempt.id,
         percent: Math.round((data.attempt.correct_answers / data.attempt.total_questions) * 100) || 0,
         correct: data.attempt.correct_answers,
@@ -161,9 +179,44 @@ export default function QuizPlay() {
     return `${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
-  if (loading) return <div className="flex justify-center p-20"><Loader className="animate-spin text-indigo-500" size={48} /></div>;
-  if (error) return <div className="text-red-500 p-10 text-center font-bold">{error}</div>;
-  if (!quiz) return null;
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 gap-4">
+      <Loader className="animate-spin text-indigo-500" size={48} />
+      <p className="text-slate-400 font-bold animate-pulse uppercase tracking-widest text-xs">Đang chuẩn bị bài thi...</p>
+    </div>
+  );
+
+  if (error) return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-6">
+      <div className="bg-white p-10 rounded-[2.5rem] shadow-xl text-center max-w-md w-full border border-slate-100">
+        <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center mx-auto mb-6 rotate-3">
+          <AlertCircle size={40} />
+        </div>
+        <h2 className="text-2xl font-black text-slate-800 mb-2">Lỗi tải bài thi</h2>
+        <p className="text-slate-500 font-medium mb-8 leading-relaxed">{error}</p>
+        <Button onClick={() => navigate("/join")} className="w-full h-14 rounded-2xl bg-slate-900 hover:bg-slate-800 font-bold shadow-lg">Quay lại</Button>
+      </div>
+    </div>
+  );
+
+  if (!quiz || !quiz.questions || quiz.questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-6">
+        <div className="bg-white p-10 rounded-[2.5rem] shadow-xl text-center max-w-md w-full border border-slate-100">
+          <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center mx-auto mb-6 -rotate-3">
+            <HelpCircle size={40} />
+          </div>
+          <h2 className="text-2xl font-black text-slate-800 mb-2">Bài thi chưa sẵn sàng</h2>
+          <p className="text-slate-500 font-medium mb-8 leading-relaxed">
+            Hiện tại bài thi này chưa có câu hỏi nào. Bạn vui lòng quay lại sau hoặc liên hệ giáo viên.
+          </p>
+          <Button onClick={() => navigate("/join")} className="w-full h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-100 text-white">
+            Trở về trang chủ
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const question = quiz.questions[currentQuestion];
   const answeredCount = Object.keys(answers).length;

@@ -1,56 +1,54 @@
 const { Quiz } = require("../models");
 
-// Đối tượng lưu trữ thời gian của các quiz đang diễn ra
+// Lưu trữ timer theo key: quizId_userId
 const activeTimers = {};
-// Đối tượng lưu trữ các interval để quản lý việc đếm ngược
 const timerIntervals = {};
 
 module.exports = (io) => {
     io.on("connection", (socket) => {
         console.log(`🔌 New client connected: ${socket.id}`);
 
-        // Join vào room theo QuizId
-        socket.on("joinQuiz", (quizId) => {
-            socket.join(quizId);
-            console.log(`👤 Client ${socket.id} joined quiz: ${quizId}`);
+        // Join theo phòng cá nhân: quizId_userId
+        socket.on("joinQuiz", ({ quizId, userId }) => {
+            const roomName = `${quizId}_${userId}`;
+            socket.join(roomName);
+            console.log(`👤 User ${userId} joined room: ${roomName}`);
 
-            // Gửi thời gian hiện tại nếu quiz đã bắt đầu
-            if (activeTimers[quizId]) {
-                socket.emit("timerUpdate", activeTimers[quizId]);
+            // Nếu đã có timer đang chạy cho user này trong quiz này, gửi cho họ
+            if (activeTimers[roomName]) {
+                socket.emit("timerUpdate", activeTimers[roomName]);
             }
         });
 
-        // Khởi tạo và đồng bộ thời gian làm bài
-        socket.on("startQuiz", async (quizId) => {
+        // Khởi tạo timer cá nhân
+        socket.on("startQuiz", async ({ quizId, userId }) => {
+            const roomName = `${quizId}_${userId}`;
             try {
-                // Kiểm tra nếu quiz đã có timer rồi thì không khởi tạo lại
-                if (activeTimers[quizId]) return;
+                // Xoá timer cũ nếu có (để phục vụ tính năng retry/làm lại từ đầu)
+                if (timerIntervals[roomName]) {
+                    clearInterval(timerIntervals[roomName]);
+                }
 
                 const quiz = await Quiz.findById(quizId);
                 if (!quiz || !quiz.time_limit) return;
 
-                // Quy đổi từ phút sang giây
                 let remainingTime = quiz.time_limit * 60;
-                activeTimers[quizId] = remainingTime;
+                activeTimers[roomName] = remainingTime;
 
-                console.log(`⏱️ Started timer for quiz ${quizId}: ${remainingTime}s`);
-                io.to(quizId).emit("timerStarted", remainingTime);
+                console.log(`⏱️ Individual timer started for ${roomName}: ${remainingTime}s`);
+                io.to(roomName).emit("timerStarted", remainingTime);
 
-                // Task CCVNNPTPM-74: Logic đếm ngược và đồng bộ thời gian thực cho toàn bộ room
-                timerIntervals[quizId] = setInterval(() => {
-                    if (activeTimers[quizId] > 0) {
-                        activeTimers[quizId]--;
-
-                        // Broadcast thời gian mới cho mọi người trong phòng
-                        io.to(quizId).emit("timerUpdate", activeTimers[quizId]);
+                timerIntervals[roomName] = setInterval(() => {
+                    if (activeTimers[roomName] > 0) {
+                        activeTimers[roomName]--;
+                        io.to(roomName).emit("timerUpdate", activeTimers[roomName]);
                     } else {
-                        // Khi hết giờ: dừng bộ đếm và thông báo
-                        clearInterval(timerIntervals[quizId]);
-                        delete activeTimers[quizId];
-                        delete timerIntervals[quizId];
+                        clearInterval(timerIntervals[roomName]);
+                        delete activeTimers[roomName];
+                        delete timerIntervals[roomName];
 
-                        io.to(quizId).emit("timerFinished");
-                        console.log(`🏁 Timer finished for quiz: ${quizId}`);
+                        io.to(roomName).emit("timerFinished");
+                        console.log(`🏁 Timer finished for: ${roomName}`);
                     }
                 }, 1000);
 

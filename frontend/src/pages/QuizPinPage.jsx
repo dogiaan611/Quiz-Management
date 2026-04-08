@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { KeyRound, Loader2, User, Mail, Home } from "lucide-react";
+import { checkQuizCode } from "@/services/quizService";
 
 export default function QuizPinPage() {
   const [pin, setPin] = useState("");
@@ -37,24 +38,19 @@ export default function QuizPinPage() {
       return setError("Vui lòng nhập mã PIN");
     }
 
-    if (pin.length < 4) {
-      return setError("Mã PIN phải từ 4 số trở lên");
+    if (pin.length < 6) {
+      return setError("Mã PIN phải có 6 ký tự");
     }
 
     if (!name.trim()) {
       return setError("Vui lòng nhập họ tên");
     }
 
-    if (!isValidEmail(email)) {
-      return setError("Email không hợp lệ");
-    }
-
     try {
       setLoading(true);
       setError("");
 
-      // Fake API
-      await new Promise((resolve) => setTimeout(resolve, 900));
+      const { data } = await checkQuizCode(pin);
 
       sessionStorage.setItem(
         "quizUser",
@@ -66,9 +62,9 @@ export default function QuizPinPage() {
         })
       );
 
-      navigate(`/quiz/${pin}`);
-    } catch {
-      setError("Không tìm thấy quiz với mã này");
+      navigate(`/quiz/${data.quiz.id}`);
+    } catch (err) {
+      setError(err.response?.data?.message || "Không tìm thấy quiz với mã này");
     } finally {
       setLoading(false);
     }

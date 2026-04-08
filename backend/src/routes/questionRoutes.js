@@ -1,8 +1,8 @@
 const express = require("express");
-const { createManualQuestion, getQuizQuestions, importQuestionsFromFile, downloadTemplate } = require("../controllers/questionController");
+const { createManualQuestion, getQuizQuestions, importQuestionsFromFile, downloadTemplate, deleteQuestion, getAllQuestions } = require("../controllers/questionController");
 const upload = require("../middlewares/uploadMiddleware");
 
-const { authenticate, authorize } = require("../middlewares/authMiddleware");
+const { authenticate, authorize, optionalAuthenticate } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
@@ -14,11 +14,25 @@ const router = express.Router();
 router.post("/manual", authenticate, authorize("admin", "teacher"), createManualQuestion);
 
 /**
+ * @route GET /api/questions
+ * @desc Lấy toàn bộ câu hỏi của User (Ngân hàng câu hỏi)
+ * @access Private (Teacher/Admin)
+ */
+router.get("/", authenticate, getAllQuestions);
+
+/**
  * @route GET /api/questions/quiz/:quizId
  * @desc Lấy danh sách câu hỏi của một Quiz
  * @access Private/Public
  */
-router.get("/quiz/:quizId", getQuizQuestions);
+router.get("/quiz/:quizId", optionalAuthenticate, getQuizQuestions);
+
+/**
+ * @route DELETE /api/questions/:questionId
+ * @desc Xoá một câu hỏi
+ * @access Private (Teacher/Admin)
+ */
+router.delete("/:questionId", authenticate, authorize("admin", "teacher"), deleteQuestion);
 
 /**
  * @route POST /api/questions/import

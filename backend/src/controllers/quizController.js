@@ -27,7 +27,7 @@ const createQuiz = async (req, res) => {
         let isCodeUnique = false;
         
         while (!isCodeUnique) {
-            access_code = crypto.randomBytes(4).toString("hex").toUpperCase(); 
+            access_code = crypto.randomBytes(3).toString("hex").toUpperCase(); 
             const existingQuiz = await Quiz.findOne({ access_code });
             if (!existingQuiz) isCodeUnique = true;
         }
@@ -109,6 +109,7 @@ const getAllQuizzes = async (req, res) => {
  */
 const getQuizById = async (req, res) => {
     const { quizId } = req.params;
+    const user = req.user; // Từ middleware authenticate (nên được thêm vào route này)
 
     try {
         const quiz = await Quiz.findById(quizId)
@@ -120,7 +121,55 @@ const getQuizById = async (req, res) => {
 
         if (!quiz) return res.status(404).json({ message: "Không tìm thấy quiz" });
 
+        // 🛡️ KIỂM TRA GIỚI HẠN SỐ LẦN LÀM BÀI CHO STUDENT
+        // Nếu không có req.user (khách dùng PIN), ta bỏ qua bước này (hoặc có thể xử lý PIN sau)
+        // Nhưng thường route này nên có authenticate nếu muốn chặn theo User ID
+        if (user && user.role === 'student' && quiz.created_by.toString() !== user.id) {
+             if (quiz.max_attempts > 0) {
+                const attemptCount = await Attempt.countDocuments({
+                    quiz_id: quizId,
+                    user_id: user.id,
+                    status: "submitted"
+                });
+
+                if (attemptCount >= quiz.max_attempts) {
+                    return res.status(403).json({ 
+                        message: `Bạn đã hết lượt làm bài (Giới hạn: ${quiz.max_attempts} lần).`,
+                        isExhausted: true 
+                    });
+                }
+             }
+        }
+
         return res.status(200).json({ quiz });
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi server" });
+    }
+};
+
+/**
+ * Sửa quiz
+ */
+const updateQuiz = async (req, res) => {
+    const { quizId } = req.params;
+    const { title, description, time_limit, max_attempts } = req.body;
+
+    try {
+        const quiz = await Quiz.findById(quizId);
+        if (!quiz) return res.status(404).json({ message: "Không tìm thấy quiz." });
+
+        // Chỉ chủ sở hữu hoặc admin mới được sửa
+        if (quiz.created_by.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ message: "Bạn không có quyền sửa quiz này." });
+        }
+
+        quiz.title = title || quiz.title;
+        quiz.description = description || quiz.description;
+        quiz.time_limit = time_limit || quiz.time_limit;
+        quiz.max_attempts = max_attempts || quiz.max_attempts;
+
+        await quiz.save();
+        return res.status(200).json({ message: "Cập nhật quiz thành công", quiz });
     } catch (error) {
         return res.status(500).json({ message: "Lỗi server" });
     }
@@ -168,6 +217,21 @@ const submitQuiz = async (req, res) => {
 
         const quiz = await Quiz.findById(quizId);
         if (!quiz) return res.status(404).json({ message: "Không tìm thấy Quiz." });
+
+        // 🛡️ KIỂM TRA GIỚI HẠN SỐ LẦN LÀM BÀI
+        if (quiz.max_attempts > 0) {
+            const attemptCount = await Attempt.countDocuments({
+                quiz_id: quizId,
+                user_id: userId,
+                status: "submitted"
+            });
+
+            if (attemptCount >= quiz.max_attempts) {
+                return res.status(403).json({ 
+                    message: `Bạn đã hết lượt làm bài (Giới hạn: ${quiz.max_attempts} lần).` 
+                });
+            }
+        }
 
         let correctCount = 0;
         const processedAnswers = [];
@@ -240,6 +304,26 @@ const getAttemptResult = async (req, res) => {
     }
 };
 
+/**
+ * Xoá quiz
+ */
+const deleteQuiz = async (req, res) => {
+    const { quizId } = req.params;
+    try {
+        const quiz = await Quiz.findById(quizId);
+        if (!quiz) return res.status(404).json({ message: "Không tìm thấy quiz." });
+
+        if (quiz.created_by.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ message: "Bạn không có quyền xoá quiz này." });
+        }
+
+        await Quiz.findByIdAndDelete(quizId);
+        return res.status(200).json({ message: "Xoá quiz thành công" });
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi server" });
+    }
+};
+
 module.exports = {
     createQuiz,
     addQuestionsToQuiz,
@@ -248,5 +332,7 @@ module.exports = {
     checkQuizCode,
     joinQuiz,
     submitQuiz,
-    getAttemptResult
+    getAttemptResult,
+    deleteQuiz,
+    updateQuiz
 };

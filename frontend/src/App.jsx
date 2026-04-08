@@ -96,18 +96,15 @@ function App() {
 
         {/* USER ROUTES */}
         <Route path="/user" element={<UserLayout />}>
-          <Route path="dashboard" element={<UserDashboard />} />
+          <Route index element={<UserQuizzes />} />
           <Route path="quizzes" element={<UserQuizzes />} />
         </Route>
 
         {/* ADMIN ROUTES */}
         <Route path="/admin" element={<AdminLayout />}>
-          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route index element={<AdminQuizzes />} />
           <Route path="quizzes" element={<AdminQuizzes />} />
           <Route path="questions" element={<AdminQuestions />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="reports" element={<AdminReports />} />
-          <Route path="settings" element={<AdminSettings />} />
         </Route>
 
         {/* RESULTS */}

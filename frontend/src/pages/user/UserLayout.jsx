@@ -14,13 +14,6 @@ export default function UserLayout() {
           </h2>
 
           <nav className="space-y-3">
-            <Link
-              to="/user/dashboard"
-              className="flex items-center gap-2 p-3 rounded-xl hover:bg-indigo-100 dark:hover:bg-slate-700"
-            >
-              <LayoutDashboard size={18} />
-              Dashboard
-            </Link>
 
             <Link
               to="/user/quizzes"

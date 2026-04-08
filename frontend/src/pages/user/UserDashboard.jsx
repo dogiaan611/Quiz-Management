@@ -6,7 +6,7 @@ export default function UserDashboard() {
   useEffect(() => {
     const token = localStorage.getItem("token");
 
-    fetch("http://localhost:5001/api/profile", {
+    fetch("http://localhost:5000/api/profile", {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())

@@ -19,10 +19,10 @@ export default function GoogleAuthCallback() {
                 localStorage.setItem("user", JSON.stringify(user));
                 
                 // Điều hướng theo role
-                if (user.role === "admin") {
-                    navigate("/admin/dashboard");
+                if (user.role === "admin" || user.role === "teacher") {
+                    navigate("/admin");
                 } else {
-                    navigate("/user/dashboard");
+                    navigate("/user");
                 }
             } else {
                 // Nếu chỉ có token, quay về login để lấy thông tin hoặc về trang chủ

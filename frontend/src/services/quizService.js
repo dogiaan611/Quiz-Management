@@ -10,6 +10,10 @@ export const getQuizById = (id) => api.get(`${API_BASE}/${id}`);
 
 export const createQuiz = (data) => api.post(API_BASE, data);
 
+export const checkQuizCode = (code) => api.post(`${API_BASE}/check-code`, { code });
+
+export const joinQuiz = (code) => api.post(`${API_BASE}/join`, { code });
+
 export const updateQuiz = (id, data) =>
   api.put(`${API_BASE}/${id}`, data);
 

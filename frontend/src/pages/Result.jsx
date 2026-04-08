@@ -54,12 +54,20 @@ export default function Result() {
   // RETRY
   //--------------------------------
   const handleRetry = () => {
-
+    const quizId = result?.quizId;
+    
     sessionStorage.removeItem("quizResult");
-    localStorage.removeItem("quizAnswers");
-    localStorage.removeItem("quizTime");
-
-    navigate("/join");
+    
+    if (quizId) {
+      navigate(`/quiz/${quizId}`);
+    } else {
+      const loggedInUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
+      if (loggedInUser) {
+        navigate(loggedInUser.role === "admin" || loggedInUser.role === "teacher" ? "/admin" : "/user");
+      } else {
+        navigate("/join");
+      }
+    }
   };
 
   return (
@@ -210,16 +218,23 @@ export default function Result() {
               </Button>
 
               <Button
-                className="flex-1 h-12 rounded-xl font-semibold"
+                className="flex-1 h-12 rounded-xl font-semibold bg-white dark:bg-slate-800"
                 variant="outline"
-                onClick={() => navigate("/")}
+                onClick={() => {
+                  const loggedInUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
+                  if (loggedInUser) {
+                    navigate(loggedInUser.role === "admin" || loggedInUser.role === "teacher" ? "/admin" : "/user");
+                  } else {
+                    navigate("/join");
+                  }
+                }}
               >
                 <Home size={18} className="mr-2" />
                 Trang chủ
               </Button>
 
               <Button
-                className="flex-1 h-12 rounded-xl font-semibold"
+                className="flex-1 h-12 rounded-xl font-semibold bg-slate-900 hover:bg-slate-800 text-white"
                 onClick={handleRetry}
               >
                 <RotateCcw size={18} className="mr-2" />

@@ -8,10 +8,12 @@ const {
     checkQuizCode,
     joinQuiz,
     submitQuiz,
-    getAttemptResult
+    getAttemptResult,
+    deleteQuiz,
+    updateQuiz
 } = require("../controllers/quizController");
 
-const { authenticate, authorize } = require("../middlewares/authMiddleware");
+const { authenticate, authorize, optionalAuthenticate } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
@@ -19,7 +21,7 @@ const router = express.Router();
 router.get("/", getAllQuizzes);
 
 // 🔹 Lấy chi tiết quiz
-router.get("/:quizId", getQuizById);
+router.get("/:quizId", optionalAuthenticate, getQuizById);
 
 // 🔹 Tạo quiz
 router.post(
@@ -41,6 +43,14 @@ router.post(
     authenticate,
     authorize("admin", "teacher"),
     addQuestionsToQuiz
+);
+
+// 🔹 Sửa quiz
+router.put(
+    "/:quizId",
+    authenticate,
+    authorize("admin", "teacher"),
+    updateQuiz
 );
 
 // 🔥 CHECK MÃ QUIZ
@@ -69,6 +79,14 @@ router.get(
     "/attempts/:attemptId",
     authenticate,
     getAttemptResult
+);
+
+// 🔥 XOÁ QUIZ
+router.delete(
+    "/:quizId",
+    authenticate,
+    authorize("admin", "teacher"),
+    deleteQuiz
 );
 
 module.exports = router;

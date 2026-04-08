@@ -223,15 +223,34 @@ export default function Review() {
             <Button
               size="lg"
               variant="outline"
-              onClick={() => navigate("/")}
-              className="w-full md:w-56 h-14 rounded-2xl font-bold shadow-sm"
+              onClick={() => {
+                const loggedInUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
+                if (loggedInUser) {
+                  navigate(loggedInUser.role === "admin" || loggedInUser.role === "teacher" ? "/admin" : "/user");
+                } else {
+                  navigate("/join");
+                }
+              }}
+              className="w-full md:w-56 h-14 rounded-2xl font-bold shadow-sm bg-white dark:bg-slate-800"
             >
               <Home size={20} className="mr-2" />
               Trang chủ
             </Button>
             <Button
               size="lg"
-              onClick={() => navigate("/join")}
+              onClick={() => {
+                sessionStorage.removeItem("quizResult");
+                if (overview.quiz_id) {
+                  navigate(`/quiz/${overview.quiz_id}`);
+                } else {
+                  const loggedInUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
+                  if (loggedInUser) {
+                    navigate(loggedInUser.role === "admin" || loggedInUser.role === "teacher" ? "/admin" : "/user");
+                  } else {
+                    navigate("/join");
+                  }
+                }
+              }}
               className="w-full md:w-64 h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xl shadow-indigo-100"
             >
               <RotateCcw size={20} className="mr-2" />

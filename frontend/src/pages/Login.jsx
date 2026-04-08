@@ -25,10 +25,10 @@ export default function Login() {
       localStorage.setItem("user", JSON.stringify(data.user));
 
       // Điều hướng theo role
-      if (data.user.role === "admin") {
-        navigate("/admin/dashboard");
+      if (data.user.role === "admin" || data.user.role === "teacher") {
+        navigate("/admin");
       } else {
-        navigate("/user/dashboard");
+        navigate("/user");
       }
     } catch (error) {
       console.error(error);
@@ -40,7 +40,7 @@ export default function Login() {
 
   // Hàm xử lý đăng nhập Google
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:5001/api/auth/google";
+    window.location.href = "http://localhost:5000/api/auth/google";
   };
 
   return (
