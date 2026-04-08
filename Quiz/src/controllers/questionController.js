@@ -62,23 +62,84 @@ const createManualQuestion = async (req, res) => {
 
 
 /**
- * Lấy danh sách câu hỏi của một Quiz (Optional feature)
+ * Lấy danh sách câu hỏi của một Quiz để phục vụ làm bài
+ * GET /api/questions/quiz/:quizId
  */
 const getQuizQuestions = async (req, res) => {
     try {
         const { quizId } = req.params;
-        const quiz = await Quiz.findById(quizId).populate({
-            path: 'questions',
-            populate: { path: 'answers' } // Cần định nghĩa virtual 'answers' trong Question model nếu muốn populate sâu
-        });
+        const user = req.user;
+
+        // Tìm quiz và populate đầy đủ câu hỏi và câu trả lời
+        const quiz = await Quiz.findById(quizId)
+            .select("title description time_limit max_attempts questions is_published created_by")
+            .populate({
+                path: 'questions',
+                select: 'content type image_url', // lấy thông tin câu hỏi
+                populate: { 
+                    path: 'answers',
+                    select: 'content' // mặc định chỉ lấy content answers
+                }
+            });
 
         if (!quiz) {
             return res.status(404).json({ message: "Không tìm thấy Quiz." });
         }
 
-        return res.status(200).json({ questions: quiz.questions });
+        // Kiểm tra quyền: Nếu chưa publish thì chỉ cho phép teacher/admin xem
+        const isOwner = user && (user.role === 'admin' || user.role === 'teacher' || (quiz.created_by && quiz.created_by.toString() === user.id));
+        
+        if (!quiz.is_published && !isOwner) {
+            return res.status(403).json({ message: "Bài thi này chưa được công bố hoặc bạn không có quyền xem." });
+        }
+
+        let questions;
+        
+        // Hàm xáo trộn mảng (Fisher-Yates)
+        const shuffleArray = (array) => {
+            const newArr = [...array];
+            for (let i = newArr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+            }
+            return newArr;
+        };
+
+        // Nếu là GV hoặc admin muốn xem full (có đáp án đúng và không shuffle)
+        if (isOwner && req.query.showCorrect === 'true') {
+            const quizFull = await Quiz.findById(quizId)
+                .populate({
+                    path: 'questions',
+                    populate: { path: 'answers' } 
+                });
+            questions = quizFull.questions;
+        } else {
+            // Đối với SV làm bài: Xáo trộn cả CÂU HỎI và CÂU TRẢ LỜI
+            const rawQuestions = quiz.questions.map(q => {
+                const questionObj = q.toObject();
+                if (questionObj.answers && Array.isArray(questionObj.answers)) {
+                    questionObj.answers = shuffleArray(questionObj.answers);
+                }
+                return questionObj;
+            });
+            
+            // Random hóa thứ tự câu hỏi (Sprints 2 task: Tạo logic câu hỏi random)
+            questions = shuffleArray(rawQuestions);
+        }
+
+        return res.status(200).json({
+            quiz: {
+                _id: quiz._id,
+                title: quiz.title,
+                description: quiz.description,
+                time_limit: quiz.time_limit,
+                max_attempts: quiz.max_attempts
+            },
+            questions: questions
+        });
     } catch (error) {
-        return res.status(500).json({ message: "Lỗi server", error: error.message });
+        console.error("❌ ERROR GET QUIZ QUESTIONS:", error);
+        return res.status(500).json({ message: "Lỗi server khi lấy danh sách câu hỏi", error: error.message });
     }
 };
 
