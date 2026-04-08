@@ -137,6 +137,7 @@ export default function QuizPlay() {
       localStorage.removeItem(`quizTime_${id}`);
 
       sessionStorage.setItem("quizResult", JSON.stringify({
+        attemptId: data.attempt._id || data.attempt.id,
         percent: Math.round((data.attempt.correct_answers / data.attempt.total_questions) * 100) || 0,
         correct: data.attempt.correct_answers,
         wrong: data.attempt.total_questions - data.attempt.correct_answers,

@@ -201,6 +201,15 @@ export default function Result() {
             <div className="flex gap-3">
 
               <Button
+                className="flex-1 h-12 rounded-xl font-semibold bg-indigo-600 hover:bg-indigo-700 text-white"
+                onClick={() => navigate(`/review/${result.attemptId}`)}
+                disabled={!result.attemptId}
+              >
+                <CheckCircle2 size={18} className="mr-2" />
+                Xem chi tiết
+              </Button>
+
+              <Button
                 className="flex-1 h-12 rounded-xl font-semibold"
                 variant="outline"
                 onClick={() => navigate("/")}

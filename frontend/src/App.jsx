@@ -8,6 +8,7 @@ import Register from "./pages/Register";
 import QuizPinPage from "./pages/QuizPinPage";
 import QuizPlay from "./pages/QuizPlay";
 import Result from "./pages/Result";
+import Review from "./pages/Review";
 import GoogleAuthCallback from "./pages/GoogleAuthCallback";
 import UserLayout from "./pages/user/UserLayout";
 import UserDashboard from "./pages/user/UserDashboard";
@@ -113,6 +114,11 @@ function App() {
         <Route
           path="/result"
           element={<Result toggleTheme={toggleTheme} dark={dark} />}
+        />
+
+        <Route
+          path="/review/:attemptId"
+          element={<Review />}
         />
 
       </Routes>
