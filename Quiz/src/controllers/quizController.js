@@ -1,4 +1,4 @@
-const { Quiz, Attempt } = require("../models");
+const { Quiz, Attempt, Answer, Question } = require("../models");
 const { validationResult } = require("express-validator");
 const crypto = require("crypto");
 
@@ -189,33 +189,65 @@ const joinQuiz = async (req, res) => {
 const submitQuiz = async (req, res) => {
     try {
         const { quizId } = req.params;
-        const { answers } = req.body; // Mảng: [{ question_id, answer_id }]
+        const { answers } = req.body; // [{ question_id, answer_id }]
         const userId = req.user.id;
 
-        // 1. Kiểm tra Quiz có tồn tại không
+        // 1. Kiểm tra Quiz tồn tại
         const quiz = await Quiz.findById(quizId);
         if (!quiz) {
             return res.status(404).json({ message: "Không tìm thấy Quiz này." });
         }
 
-        // 2. Tạo bản ghi Attempt mới (Lưu câu trả lời - Task 31)
+        let correctCount = 0;
+        const processedAnswers = [];
+
+        // 2. Chấm điểm (Task 32)
+        if (answers && Array.isArray(answers)) {
+            for (const ans of answers) {
+                const dbAnswer = await Answer.findOne({
+                    _id: ans.answer_id,
+                    question_id: ans.question_id
+                });
+
+                const isCorrect = dbAnswer ? dbAnswer.is_correct : false;
+                if (isCorrect) correctCount++;
+
+                processedAnswers.push({
+                    question_id: ans.question_id,
+                    answer_id: ans.answer_id,
+                    is_correct: isCorrect
+                });
+            }
+        }
+
+        // Tỷ lệ điểm trên thang 10
+        const score = (quiz.questions.length > 0) 
+            ? ((correctCount / quiz.questions.length) * 10).toFixed(2) 
+            : 0;
+
+        // 3. Tạo bản ghi Attempt (Lưu kết quả - Task 31 & 32)
         const attempt = await Attempt.create({
             quiz_id: quizId,
             user_id: userId,
             total_questions: quiz.questions.length,
+            correct_answers: correctCount,
+            score: parseFloat(score),
             status: "submitted",
             submitted_at: new Date(),
-            answers: answers || []
+            answers: processedAnswers
         });
 
-        // Task 32: Tính toán điểm sẽ được thực hiện ở bước sau
-        
         return res.status(201).json({ 
-            message: "Đã lưu câu trả lời thành công",
-            attempt_id: attempt._id,
-            total_questions: attempt.total_questions,
-            status: attempt.status
+            message: "Nộp bài và chấm điểm thành công",
+            attempt: {
+                id: attempt._id,
+                score: attempt.score,
+                correct_answers: attempt.correct_answers,
+                total_questions: attempt.total_questions,
+                submitted_at: attempt.submitted_at
+            }
         });
+
     } catch (error) {
         console.error("Submit quiz error:", error);
         return res.status(500).json({ message: "Lỗi server khi nộp bài" });
