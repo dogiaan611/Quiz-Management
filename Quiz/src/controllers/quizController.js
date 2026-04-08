@@ -30,12 +30,10 @@ const createQuiz = async (req, res) => {
         while (!isCodeUnique) {
             access_code = crypto.randomBytes(4).toString("hex").toUpperCase(); 
             const existingQuiz = await Quiz.findOne({ access_code });
-            if (!existingQuiz) {
-                isCodeUnique = true;
-            }
+            if (!existingQuiz) isCodeUnique = true;
         }
 
-        const quizData = {
+        const quiz = await Quiz.create({
             title,
             description,
             time_limit,
@@ -44,9 +42,7 @@ const createQuiz = async (req, res) => {
             end_time,
             created_by,
             access_code,
-        };
-
-        const quiz = await Quiz.create(quizData);
+        });
 
         return res.status(201).json({
             message: "Tạo quiz thành công",
@@ -59,129 +55,138 @@ const createQuiz = async (req, res) => {
 };
 
 /**
- * ✅ BƯỚC 2: Kiểm tra mã Quiz
- * POST /api/quizzes/check-code
+ * Thêm câu hỏi vào quiz
  */
-const checkQuizCode = async (req, res) => {
+const addQuestionsToQuiz = async (req, res) => {
+    const { quizId } = req.params;
+    const { questionIds } = req.body;
+
+    if (!questionIds || !Array.isArray(questionIds) || questionIds.length === 0) {
+        return res.status(400).json({ message: "Danh sách question IDs không hợp lệ." });
+    }
+
     try {
-        const { code } = req.body;
+        const quiz = await Quiz.findById(quizId);
+        if (!quiz) return res.status(404).json({ message: "Không tìm thấy quiz." });
 
-        if (!code) {
-            return res.status(400).json({ message: "Thiếu mã quiz" });
+        if (quiz.created_by.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ message: "Bạn không có quyền chỉnh sửa quiz này." });
         }
 
-        const quiz = await Quiz.findOne({
-            access_code: code.toUpperCase(),
-        });
+        const currentQuestionIds = quiz.questions.map(id => id.toString());
+        const newQuestions = questionIds.filter(id => !currentQuestionIds.includes(id));
 
-        if (!quiz) {
-            return res.status(404).json({
-                message: "Mã quiz không tồn tại",
-            });
+        if (newQuestions.length === 0) {
+            return res.status(400).json({ message: "Các câu hỏi đã tồn tại." });
         }
 
-        // ❗ chưa publish thì không cho vào
-        if (!quiz.is_published) {
-            return res.status(400).json({
-                message: "Quiz chưa được mở",
-            });
-        }
-
-        const now = new Date();
-
-        // ❗ check thời gian
-        if (quiz.start_time && now < quiz.start_time) {
-            return res.status(400).json({
-                message: "Quiz chưa bắt đầu",
-            });
-        }
-
-        if (quiz.end_time && now > quiz.end_time) {
-            return res.status(400).json({
-                message: "Quiz đã kết thúc",
-            });
-        }
+        quiz.questions.push(...newQuestions);
+        await quiz.save();
 
         return res.status(200).json({
-            message: "Mã hợp lệ",
-            quizId: quiz._id,
-            title: quiz.title,
-            time_limit: quiz.time_limit,
+            message: "Thêm câu hỏi thành công",
+            added_count: newQuestions.length,
+            quiz,
         });
     } catch (error) {
-        console.error("Check quiz code error:", error);
-        return res.status(500).json({
-            message: "Lỗi server",
-        });
+        console.error(error);
+        return res.status(500).json({ message: "Lỗi server" });
     }
 };
 
 /**
- * ✅ BƯỚC 3: Tham gia Quiz
- * POST /api/quizzes/join
+ * Lấy tất cả quiz
  */
-const joinQuiz = async (req, res) => {
+const getAllQuizzes = async (req, res) => {
     try {
-        const { code } = req.body;
+        const quizzes = await Quiz.find().populate("created_by", "username email");
+        return res.status(200).json({ quizzes });
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi server" });
+    }
+};
 
-        if (!code) {
-            return res.status(400).json({ message: "Thiếu mã quiz" });
-        }
+/**
+ * Lấy chi tiết quiz
+ */
+const getQuizById = async (req, res) => {
+    const { quizId } = req.params;
 
-        const quiz = await Quiz.findOne({
-            access_code: code.toUpperCase(),
-        })
-        .populate({
-            path: "questions",
-            select: "-correct_answer", // ❗ ẩn đáp án đúng
-        });
+    try {
+        const quiz = await Quiz.findById(quizId)
+            .populate("created_by", "username email")
+            .populate({
+                path: "questions",
+                populate: { path: "answers" }
+            });
+
+        if (!quiz) return res.status(404).json({ message: "Không tìm thấy quiz" });
+
+        return res.status(200).json({ quiz });
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi server" });
+    }
+};
+
+/**
+ * 🔥 CHECK MÃ QUIZ
+ * POST /api/quizzes/check-code
+ */
+const checkQuizCode = async (req, res) => {
+    const { code } = req.body;
+
+    try {
+        const quiz = await Quiz.findOne({ access_code: code });
 
         if (!quiz) {
-            return res.status(404).json({
-                message: "Mã quiz không tồn tại",
-            });
+            return res.status(404).json({ message: "Mã quiz không tồn tại" });
         }
 
         if (!quiz.is_published) {
-            return res.status(400).json({
-                message: "Quiz chưa mở",
-            });
-        }
-
-        const now = new Date();
-
-        if (quiz.start_time && now < quiz.start_time) {
-            return res.status(400).json({
-                message: "Chưa tới giờ làm bài",
-            });
-        }
-
-        if (quiz.end_time && now > quiz.end_time) {
-            return res.status(400).json({
-                message: "Đã hết giờ",
-            });
+            return res.status(400).json({ message: "Quiz chưa được publish" });
         }
 
         return res.status(200).json({
-            message: "Tham gia thành công",
+            message: "Mã hợp lệ",
             quiz: {
-                _id: quiz._id,
+                id: quiz._id,
                 title: quiz.title,
-                description: quiz.description,
-                time_limit: quiz.time_limit,
-                questions: quiz.questions,
-            },
+                description: quiz.description
+            }
         });
     } catch (error) {
-        console.error("Join quiz error:", error);
-        return res.status(500).json({
-            message: "Lỗi server",
+        return res.status(500).json({ message: "Lỗi server" });
+    }
+};
+
+/**
+ * 🔥 THAM GIA QUIZ
+ * POST /api/quizzes/join
+ */
+const joinQuiz = async (req, res) => {
+    const { code } = req.body;
+
+    try {
+        const quiz = await Quiz.findOne({ access_code: code });
+
+        if (!quiz) {
+            return res.status(404).json({ message: "Mã quiz không tồn tại" });
+        }
+
+        return res.status(200).json({
+            message: "Tham gia quiz thành công",
+            quiz
         });
+    } catch (error) {
+        return res.status(500).json({ message: "Lỗi server" });
     }
 };
 
 module.exports = {
     createQuiz,
-    checkQuizCode, // 👈 thêm
-    joinQuiz,      // 👈 thêm
+    addQuestionsToQuiz,
+    getAllQuizzes,
+    getQuizById,
+    checkQuizCode,
+    joinQuiz
 };

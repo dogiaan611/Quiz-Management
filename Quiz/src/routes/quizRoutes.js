@@ -2,18 +2,24 @@ const express = require("express");
 const { body } = require("express-validator");
 const { 
     createQuiz, 
-    checkQuizCode, 
-    joinQuiz 
+    addQuestionsToQuiz, 
+    getAllQuizzes, 
+    getQuizById,
+    checkQuizCode,
+    joinQuiz
 } = require("../controllers/quizController");
 
 const { authenticate, authorize } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
-/**
- * ✅ Tạo quiz
- * POST /api/quizzes
- */
+// 🔹 Lấy tất cả quiz
+router.get("/", getAllQuizzes);
+
+// 🔹 Lấy chi tiết quiz
+router.get("/:quizId", getQuizById);
+
+// 🔹 Tạo quiz
 router.post(
     "/",
     authenticate,
@@ -27,31 +33,25 @@ router.post(
     createQuiz
 );
 
-/**
- * ✅ Check mã
- * POST /api/quizzes/check-code
- */
+// 🔹 Thêm câu hỏi
+router.post(
+    "/:quizId/questions",
+    authenticate,
+    authorize("admin", "teacher"),
+    addQuestionsToQuiz
+);
+
+// 🔥 CHECK MÃ QUIZ
 router.post(
     "/check-code",
-    [
-        body("code")
-            .trim()
-            .notEmpty().withMessage("Mã quiz không được để trống"),
-    ],
+    body("code").notEmpty().withMessage("Mã không được để trống"),
     checkQuizCode
 );
 
-/**
- * ✅ Join quiz
- * POST /api/quizzes/join
- */
+// 🔥 THAM GIA QUIZ
 router.post(
     "/join",
-    [
-        body("code")
-            .trim()
-            .notEmpty().withMessage("Mã quiz không được để trống"),
-    ],
+    body("code").notEmpty().withMessage("Mã không được để trống"),
     joinQuiz
 );
 
