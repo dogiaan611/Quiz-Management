@@ -2,22 +2,20 @@ const express = require("express");
 const { body } = require("express-validator");
 const { 
     createQuiz, 
-    addQuestionsToQuiz, 
-    getAllQuizzes, 
-    getQuizById 
+    checkQuizCode, 
+    joinQuiz 
 } = require("../controllers/quizController");
+
 const { authenticate, authorize } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
-// Lấy tất cả quiz (Công khai)
-router.get("/quizzes", getAllQuizzes);
-
-// Lấy chi tiết 1 quiz (Công khai hoặc có thể thêm authenticate nếu muốn)
-router.get("/quizzes/:quizId", getQuizById);
-
+/**
+ * ✅ Tạo quiz
+ * POST /api/quizzes
+ */
 router.post(
-    "/quizzes",
+    "/",
     authenticate,
     authorize("admin", "teacher"),
     [
@@ -29,11 +27,32 @@ router.post(
     createQuiz
 );
 
+/**
+ * ✅ Check mã
+ * POST /api/quizzes/check-code
+ */
 router.post(
-    "/quizzes/:quizId/questions",
-    authenticate,
-    authorize("admin", "teacher"),
-    addQuestionsToQuiz
+    "/check-code",
+    [
+        body("code")
+            .trim()
+            .notEmpty().withMessage("Mã quiz không được để trống"),
+    ],
+    checkQuizCode
+);
+
+/**
+ * ✅ Join quiz
+ * POST /api/quizzes/join
+ */
+router.post(
+    "/join",
+    [
+        body("code")
+            .trim()
+            .notEmpty().withMessage("Mã quiz không được để trống"),
+    ],
+    joinQuiz
 );
 
 module.exports = router;
