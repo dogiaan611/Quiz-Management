@@ -4,7 +4,7 @@ export default function UserQuizzes() {
   const [quizzes, setQuizzes] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/quizzes")
+    fetch("http://localhost:5001/api/quizzes")
       .then(res => res.json())
       .then(data => setQuizzes(data));
   }, []);

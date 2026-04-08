@@ -40,7 +40,7 @@ export default function Login() {
 
   // Hàm xử lý đăng nhập Google
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:5000/api/auth/google";
+    window.location.href = "http://localhost:5001/api/auth/google";
   };
 
   return (

@@ -1,8 +1,10 @@
 {
+  "name": "quiz-management-backend",
+  "version": "1.0.0",
   "scripts": {
-    "server": "nodemon index.js",
-    "client": "npm run dev --prefix frontend",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "dev": "nodemon index.js",
+    "server": "npm run dev",
+    "start": "node index.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

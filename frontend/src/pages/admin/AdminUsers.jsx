@@ -18,7 +18,7 @@ export default function AdminUsers() {
   const fetchUsers = async () => {
     try {
 
-      const res = await fetch("http://localhost:5000/api/admin/users", {
+      const res = await fetch("http://localhost:5001/api/admin/users", {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -69,7 +69,7 @@ export default function AdminUsers() {
     try {
 
       const res = await fetch(
-        `http://localhost:5000/api/admin/users/${editingUser.Id}`,
+        `http://localhost:5001/api/admin/users/${editingUser.Id}`,
         {
           method: "PUT",
           headers: {
@@ -100,7 +100,7 @@ export default function AdminUsers() {
     try {
 
       const res = await fetch(
-        `http://localhost:5000/api/admin/users/${user.Id}`,
+        `http://localhost:5001/api/admin/users/${user.Id}`,
         {
           method: "PUT",
           headers: {
