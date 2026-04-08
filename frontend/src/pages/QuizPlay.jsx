@@ -24,6 +24,7 @@ export default function QuizPlay() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTimeUp, setIsTimeUp] = useState(false); // Task 75: Kiểm tra hết giờ
 
   /* =============================
         1. LOAD USER & AUTH
@@ -45,17 +46,19 @@ export default function QuizPlay() {
 
     socket.connect();
     socket.emit("joinQuiz", id);
-    socket.emit("startQuiz", id); // Phát tín hiệu bắt đầu đếm ngược nếu chưa có
+    socket.emit("startQuiz", id);
 
     // Lắng nghe cập nhật thời gian từ server
     socket.on("timerUpdate", (time) => {
       setTimeLeft(time);
+      if (time > 0) setIsTimeUp(false);
     });
 
-    // Lắng nghe tín hiệu kết thúc
+    // Task 75: Lắng nghe tín hiệu kết thúc
     socket.on("timerFinished", () => {
       setTimeLeft(0);
-      handleSubmit(true); // Tự động nộp
+      setIsTimeUp(true);
+      // Logic nộp bài sẽ nằm ở Task 76
     });
 
     return () => {
@@ -247,10 +250,12 @@ export default function QuizPlay() {
                         <button
                           key={i}
                           onClick={() => selectAnswer(i)}
+                          disabled={isSubmitting || isTimeUp}
                           className={`w-full p-6 rounded-2xl border-2 text-left transition-all duration-200 flex items-center group
                             ${isSelected 
                               ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 shadow-md ring-1 ring-indigo-500" 
-                              : "border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 hover:border-indigo-200 hover:bg-white dark:hover:bg-slate-800"}`}
+                              : "border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 hover:border-indigo-200 hover:bg-white dark:hover:bg-slate-800"}
+                            ${(isSubmitting || isTimeUp) ? "opacity-60 cursor-not-allowed" : ""}`}
                         >
                           <div className={`w-11 h-11 rounded-xl flex items-center justify-center mr-5 font-black text-lg transition-transform group-active:scale-95
                             ${isSelected ? "bg-indigo-600 text-white shadow-lg" : "bg-white dark:bg-slate-700 text-slate-400 dark:text-slate-500 shadow-sm"}`}>
@@ -271,7 +276,7 @@ export default function QuizPlay() {
             <Button
               variant="ghost"
               size="lg"
-              disabled={currentQuestion === 0}
+              disabled={currentQuestion === 0 || isTimeUp}
               onClick={() => setCurrentQuestion(prev => prev - 1)}
               className="px-10 h-14 rounded-2xl hover:bg-white shadow-sm"
             >
@@ -284,7 +289,7 @@ export default function QuizPlay() {
                   size="lg" 
                   className="px-14 h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-100 dark:shadow-none" 
                   onClick={() => setConfirmSubmit(true)}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isTimeUp}
                 >
                   {isSubmitting ? <Loader className="animate-spin" /> : "Gửi kết quả"}
                 </Button>
@@ -292,6 +297,7 @@ export default function QuizPlay() {
                 <Button
                   size="lg"
                   onClick={() => setCurrentQuestion(prev => prev + 1)}
+                  disabled={isTimeUp}
                   className="px-14 h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-100 dark:shadow-none"
                 >
                   Tiếp theo
