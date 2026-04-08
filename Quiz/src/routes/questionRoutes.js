@@ -1,6 +1,7 @@
 const express = require("express");
 const { createManualQuestion, getQuizQuestions, importQuestionsFromFile, downloadTemplate } = require("../controllers/questionController");
 const upload = require("../middlewares/uploadMiddleware");
+const { authenticate, authorize } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
@@ -9,7 +10,7 @@ const router = express.Router();
  * @desc Tạo câu hỏi thủ công cho một Quiz
  * @access Private (Teacher/Admin)
  */
-router.post("/manual", createManualQuestion);
+router.post("/manual", authenticate, authorize("teacher", "admin"), createManualQuestion);
 
 /**
  * @route GET /api/questions/quiz/:quizId
@@ -22,7 +23,7 @@ router.get("/quiz/:quizId", getQuizQuestions);
  * @route POST /api/questions/import
  * @desc API Upload file Excel (.xlsx)
  */
-router.post("/import", upload.single("file"), importQuestionsFromFile);
+router.post("/import", authenticate, authorize("teacher", "admin"), upload.single("file"), importQuestionsFromFile);
 
 /**
  * @route GET /api/questions/template

@@ -3,11 +3,12 @@ const mongoose = require("mongoose");
 
 const createManualQuestion = async (req, res) => {
     try {
-        const { content, type, image_url, quiz_id, created_by, answers } = req.body;
+        const { content, type, image_url, quiz_id, answers } = req.body;
+        const created_by = req.user.id;
 
-        // 1. Kiểm tra các trường bắt buộc (Không bắt buộc quiz_id nữa)
-        if (!content || !created_by || !answers || !Array.isArray(answers) || answers.length === 0) {
-            return res.status(400).json({ message: "Vui lòng cung cấp đầy đủ thông tin: content, created_by, answers." });
+        // 1. Kiểm tra các trường bắt buộc
+        if (!content || !answers || !Array.isArray(answers) || answers.length === 0) {
+            return res.status(400).json({ message: "Vui lòng cung cấp đầy đủ thông tin: content, answers." });
         }
 
         // 2. Kiểm tra xem Quiz có tồn tại không (nếu có truyền quiz_id)
@@ -84,24 +85,88 @@ const getQuizQuestions = async (req, res) => {
 /**
  * API Upload file Excel (.xlsx)
  */
+/**
+ * API Upload file Excel (.xlsx) và Import vào Database
+ */
 const importQuestionsFromFile = async (req, res) => {
+    const xlsx = require("xlsx");
+    const fs = require("fs");
+    
     try {
         if (!req.file) {
             return res.status(400).json({ message: "Vui lòng chọn file để tải lên." });
         }
 
-        return res.status(200).json({
-            message: "Tải file lên thành công và đã lưu file tạm.",
-            file: {
-                filename: req.file.filename,
-                originalName: req.file.originalname,
-                path: req.file.path,
-                size: req.file.size
+        const { quiz_id } = req.body;
+        const created_by = req.user.id;
+
+        // 1. Đọc file Excel
+        const workbook = xlsx.readFile(req.file.path);
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const data = xlsx.utils.sheet_to_json(worksheet);
+
+        if (!data || data.length === 0) {
+            return res.status(400).json({ message: "File Excel trống hoặc không đúng định dạng." });
+        }
+
+        const importedQuestions = [];
+
+        // 2. Lặp qua từng dòng để lưu vào DB
+        for (const row of data) {
+            const { question, A, B, C, D, correctAnswer } = row;
+
+            if (!question || !correctAnswer) continue;
+
+            // Tạo Question
+            const newQuestion = await Question.create({
+                content: question,
+                type: "multiple_choice",
+                created_by
+            });
+
+            // Chuẩn bị Answers
+            const possibleAnswers = [
+                { content: A, label: "A" },
+                { content: B, label: "B" },
+                { content: C, label: "C" },
+                { content: D, label: "D" }
+            ].filter(ans => ans.content); // Chỉ lấy những câu trả lời có nội dung
+
+            const answersToInsert = possibleAnswers.map(ans => ({
+                question_id: newQuestion._id,
+                content: ans.content,
+                is_correct: ans.label === correctAnswer
+            }));
+
+            await Answer.insertMany(answersToInsert);
+            importedQuestions.push(newQuestion._id);
+        }
+
+        // 3. Nếu có quiz_id, gán vào Quiz
+        if (quiz_id && importedQuestions.length > 0) {
+            const quiz = await Quiz.findById(quiz_id);
+            if (quiz) {
+                quiz.questions.push(...importedQuestions);
+                await quiz.save();
             }
+        }
+
+        // 4. Xóa file tạm sau khi xử lý xong
+        fs.unlinkSync(req.file.path);
+
+        return res.status(200).json({
+            message: `Import thành công ${importedQuestions.length} câu hỏi.`,
+            quiz_id: quiz_id || null
         });
+
     } catch (error) {
-        console.error("❌ ERROR UPLOADING FILE:", error);
-        return res.status(500).json({ message: "Lỗi server khi upload file.", error: error.message });
+        console.error("❌ ERROR IMPORTING FROM FILE:", error);
+        // Xóa file nếu có lỗi xảy ra
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        return res.status(500).json({ message: "Lỗi server khi import file.", error: error.message });
     }
 };
 
