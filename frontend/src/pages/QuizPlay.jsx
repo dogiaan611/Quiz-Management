@@ -143,14 +143,33 @@ export default function QuizPlay() {
       }));
 
       const { data } = await submitQuiz(id, formattedAnswers);
-      
-      navigate("/result", { 
-        state: { 
-          result: data.result,
-          quizTitle: currentQuiz.title,
-          userName: currentUser?.name || currentUser?.username || "Thí sinh"
-        } 
-      });
+
+      // Dọn dẹp cache
+      localStorage.removeItem(`quizAnswers_${id}`);
+      localStorage.removeItem(`quizTime_${id}`);
+
+      // Đảm bảo trang Kết quả có thông tin user để hiển thị (tránh bị đá về trang join)
+      if (!sessionStorage.getItem("quizUser")) {
+        sessionStorage.setItem("quizUser", JSON.stringify({
+          name: currentUser?.name || currentUser?.username || "Người dùng",
+          pin: currentQuiz.access_code || "N/A",
+          email: currentUser?.email || ""
+        }));
+      }
+
+      sessionStorage.setItem("quizResult", JSON.stringify({
+        quizId: id,
+        attemptId: data.attempt._id || data.attempt.id,
+        percent: Math.round((data.attempt.correct_answers / data.attempt.total_questions) * 100) || 0,
+        correct: data.attempt.correct_answers,
+        wrong: data.attempt.total_questions - data.attempt.correct_answers,
+        score: data.attempt.score,
+        timeSpent: currentQuiz.time_limit * 60,
+        totalQuestions: data.attempt.total_questions,
+        autoSubmitted: true
+      }));
+
+      navigate("/result");
     } catch (err) {
       console.error("Lỗi tự động nộp bài:", err);
     } finally {
