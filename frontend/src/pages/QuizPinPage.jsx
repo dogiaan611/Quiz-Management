@@ -1,0 +1,249 @@
+import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { motion } from "framer-motion";
+import { KeyRound, Loader2, User, Mail, Home } from "lucide-react";
+import { checkQuizCode } from "@/services/quizService";
+
+export default function QuizPinPage() {
+  const [pin, setPin] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const navigate = useNavigate();
+  const nameRef = useRef(null);
+
+  //--------------------------------
+  // EMAIL VALIDATE
+  //--------------------------------
+  const isValidEmail = (email) => {
+    if (!email) return true; // optional
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  //--------------------------------
+  // HANDLE JOIN
+  //--------------------------------
+  const handleJoinQuiz = async (e) => {
+    e.preventDefault();
+
+    if (loading) return;
+
+    if (!pin.trim()) {
+      return setError("Vui lòng nhập mã PIN");
+    }
+
+    if (pin.length < 6) {
+      return setError("Mã PIN phải có 6 ký tự");
+    }
+
+    if (!name.trim()) {
+      return setError("Vui lòng nhập họ tên");
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const { data } = await checkQuizCode(pin);
+
+      sessionStorage.setItem(
+        "quizUser",
+        JSON.stringify({
+          pin,
+          name,
+          email,
+          joinTime: Date.now(),
+        })
+      );
+
+      navigate(`/quiz/${data.quiz.id}`);
+    } catch (err) {
+      setError(err.response?.data?.message || "Không tìm thấy quiz với mã này");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  //--------------------------------
+  // PIN CHANGE
+  //--------------------------------
+  const handlePinChange = (e) => {
+    // Cho phép cả chữ và số, tối đa 6 ký tự, tự động viết hoa
+    const value = e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+
+    setPin(value);
+    setError("");
+
+    if (value.length === 6) {
+      nameRef.current?.focus();
+    }
+  };
+
+  //--------------------------------
+  // GO HOME WITH CONFIRM
+  //--------------------------------
+  const goHome = () => {
+    if (pin || name || email) {
+      const confirmLeave = window.confirm(
+        "Bạn đã nhập thông tin. Bạn có chắc muốn quay về trang chủ?"
+      );
+
+      if (!confirmLeave) return;
+    }
+
+    navigate("/");
+  };
+
+  return (
+    <div
+      className="
+      min-h-screen flex items-center justify-center p-6
+      bg-gradient-to-br 
+      from-indigo-500 via-purple-500 to-blue-500
+      dark:from-slate-900 dark:via-slate-800 dark:to-slate-900
+    "
+    >
+      {/* ⭐ NÚT HOME GÓC TRÊN */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={goHome}
+        className="absolute top-6 left-6"
+      >
+        <Home />
+      </Button>
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.35 }}
+        className="w-full max-w-md"
+      >
+        <Card
+          className="
+          rounded-3xl 
+          shadow-2xl 
+          border 
+          bg-background/80 
+          backdrop-blur-xl
+        "
+        >
+          <CardContent className="p-8">
+            {/* HEADER */}
+            <div className="text-center mb-8">
+              <div className="flex justify-center mb-4">
+                <div className="p-4 rounded-2xl bg-indigo-100 dark:bg-indigo-500/20">
+                  <KeyRound
+                    size={40}
+                    className="text-indigo-600 dark:text-indigo-400"
+                  />
+                </div>
+              </div>
+
+              <h1 className="text-3xl font-bold text-black dark:text-white">
+                Tham gia Quiz
+              </h1>
+
+              <p className="text-muted-foreground mt-2 text-sm">
+                Nhập thông tin để bắt đầu làm bài
+              </p>
+            </div>
+
+            {/* FORM */}
+            <form onSubmit={handleJoinQuiz} className="space-y-4">
+              {/* PIN */}
+              <Input
+                placeholder="Mã PIN"
+                value={pin}
+                onChange={handlePinChange}
+                className="text-center text-xl tracking-[0.35em] h-12 font-semibold"
+                maxLength={6}
+                autoFocus
+              />
+
+              {/* NAME */}
+              <div className="relative">
+                <User
+                  size={18}
+                  className="absolute left-3 top-3 text-muted-foreground"
+                />
+                <Input
+                  ref={nameRef}
+                  placeholder="Họ và tên"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setError("");
+                  }}
+                  className="pl-10 h-12"
+                />
+              </div>
+
+              {/* EMAIL */}
+              <div className="relative">
+                <Mail
+                  size={18}
+                  className="absolute left-3 top-3 text-muted-foreground"
+                />
+                <Input
+                  placeholder="Email (không bắt buộc)"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-10 h-12"
+                  type="email"
+                />
+              </div>
+
+              {/* ERROR */}
+              {error && (
+                <motion.p
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-sm text-destructive text-center"
+                >
+                  {error}
+                </motion.p>
+              )}
+
+              {/* JOIN BUTTON */}
+              <Button
+                type="submit"
+                className="w-full text-base font-semibold h-12 rounded-xl"
+                disabled={loading}
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="animate-spin" size={18} />
+                    Đang kiểm tra...
+                  </span>
+                ) : (
+                  "Bắt đầu làm bài"
+                )}
+              </Button>
+
+              {/* ⭐ NÚT HOME DƯỚI */}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-11 rounded-xl"
+                onClick={goHome}
+              >
+                Về trang chủ
+              </Button>
+            </form>
+
+            <p className="text-center text-xs text-muted-foreground mt-6">
+              Không có mã? Hãy liên hệ giảng viên hoặc người tạo quiz.
+            </p>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}
