@@ -9,7 +9,11 @@ import {
   LayoutGrid, 
   List,
   Loader2,
-  Calendar,
+  Trophy,
+  RotateCcw,
+  Play,
+  UserCheck,
+  Zap,
   Key
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { getQuizzes, createQuiz, deleteQuiz, updateQuiz } from "@/services/quizService";
+import socket from "@/services/socket";
 
 export default function AdminQuizzes() {
   const [quizzes, setQuizzes] = useState([]);
@@ -26,7 +31,11 @@ export default function AdminQuizzes() {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showHostModal, setShowHostModal] = useState(false);
+  
   const [editingQuiz, setEditingQuiz] = useState(null);
+  const [hostingQuiz, setHostingQuiz] = useState(null);
+  const [lobbyParticipants, setLobbyParticipants] = useState([]);
 
   const [newQuizData, setNewQuizData] = useState({
     title: "",
@@ -44,7 +53,42 @@ export default function AdminQuizzes() {
 
   useEffect(() => {
     fetchQuizzes();
+
+    // Kết nối socket khi vào trang admin
+    socket.connect();
+
+    // Socket listener cho host để cập nhật danh sách lobby
+    socket.on("lobbyUpdate", (participants) => {
+      setLobbyParticipants(participants);
+    });
+
+    return () => {
+      socket.off("lobbyUpdate");
+      socket.disconnect(); // Ngắt khi rời trang để tiết kiệm tài khoản
+    };
   }, []);
+
+  const openHostModal = (quiz) => {
+    setHostingQuiz(quiz);
+    setLobbyParticipants([]);
+    setShowHostModal(true);
+    
+    // Join lobby room với tư cách host để xem danh sách
+    socket.emit("joinLobby", { 
+      quizId: quiz._id, 
+      user: { id: "host", name: "Giáo viên (Host)" } 
+    });
+  };
+
+  const handleStartQuiz = () => {
+    if (lobbyParticipants.length === 0) {
+      if (!window.confirm("Chưa có học sinh nào trong phòng chờ. Bạn vẫn muốn bắt đầu?")) return;
+    }
+    
+    socket.emit("startQuizByHost", { quizId: hostingQuiz._id });
+    alert("Bài thi đã bắt đầu cho tất cả mọi người!");
+    setShowHostModal(false);
+  };
 
   const fetchQuizzes = async () => {
     try {
@@ -207,25 +251,25 @@ export default function AdminQuizzes() {
 
                   <div className="flex gap-2">
                     <Button 
+                      onClick={() => openHostModal(quiz)}
+                      className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg shadow-emerald-100"
+                    >
+                      <Play size={16} className="mr-2" />
+                      Tổ chức
+                    </Button>
+                    <Button 
                       onClick={() => window.location.href=`/admin/questions?quizId=${quiz._id}`}
                       variant="outline" 
                       className="flex-1 rounded-xl font-bold text-xs"
                     >
-                      Thêm câu hỏi
+                      Câu hỏi
                     </Button>
                     <Button 
                       onClick={() => openEditModal(quiz)}
                       variant="ghost" 
-                      className="rounded-xl text-indigo-600 hover:bg-indigo-50 font-bold"
+                      className="rounded-xl text-indigo-600 hover:bg-indigo-50 font-bold p-2"
                     >
                       Sửa
-                    </Button>
-                    <Button 
-                      onClick={() => handleDeleteQuiz(quiz._id)}
-                      variant="ghost" 
-                      className="rounded-xl text-red-500 hover:bg-red-50"
-                    >
-                      Xoá
                     </Button>
                   </div>
                 </CardContent>
@@ -380,6 +424,92 @@ export default function AdminQuizzes() {
                   </form>
                 </CardContent>
               </Card>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* HOST MODAL */}
+      <AnimatePresence>
+        {showHostModal && hostingQuiz && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-xl">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 30 }}
+              className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-[3rem] shadow-2xl overflow-hidden"
+            >
+              <div className="bg-indigo-600 p-8 text-white relative">
+                <div className="absolute top-0 right-0 p-10 opacity-10 rotate-12">
+                  <Zap size={140} />
+                </div>
+                <h2 className="text-3xl font-black mb-1 leading-tight">{hostingQuiz.title}</h2>
+                <p className="text-indigo-100 font-bold uppercase tracking-widest text-xs opacity-80">Phòng chờ trực tuyến</p>
+                
+                <div className="mt-8 flex items-center gap-6">
+                  <div className="px-6 py-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                    <p className="text-[10px] font-black uppercase tracking-widest mb-1 text-indigo-100">Mã tham gia</p>
+                    <p className="text-3xl font-black tracking-[0.2em]">{hostingQuiz.access_code}</p>
+                  </div>
+                  <div className="h-10 w-[1px] bg-white/20" />
+                  <div>
+                    <p className="text-4xl font-black">{lobbyParticipants.filter(p => p.id !== "host").length}</p>
+                    <p className="text-xs font-bold text-indigo-100 uppercase tracking-widest">Học sinh đã vào</p>
+                  </div>
+                </div>
+              </div>
+
+              <CardContent className="p-10">
+                <div className="mb-8 overflow-y-auto max-h-60 pr-2">
+                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <Users size={16} />
+                    Danh sách chờ ({lobbyParticipants.filter(p => p.id !== "host").length})
+                  </h3>
+                  
+                  {lobbyParticipants.filter(p => p.id !== "host").length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <AnimatePresence>
+                        {lobbyParticipants.filter(p => p.id !== "host").map((p, idx) => (
+                          <motion.div
+                            key={p.socketId || idx}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800"
+                          >
+                            <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                              <UserCheck size={20} />
+                            </div>
+                            <span className="font-bold text-slate-700 dark:text-slate-200 truncate">{p.name}</span>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  ) : (
+                    <div className="py-12 text-center bg-slate-50 dark:bg-slate-800/20 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                      <p className="text-slate-400 font-bold animate-pulse uppercase tracking-widest text-xs">Đang chờ người tham gia...</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Button 
+                    onClick={handleStartQuiz}
+                    className="h-16 rounded-[1.5rem] bg-indigo-600 hover:bg-indigo-700 text-white font-black text-lg shadow-xl shadow-indigo-100 active:scale-95 transition-all"
+                  >
+                    <Zap size={20} className="mr-2" />
+                    BẮT ĐẦU NGAY
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                        setShowHostModal(false);
+                        setHostingQuiz(null);
+                    }}
+                    className="h-16 rounded-[1.5rem] font-black text-lg border-2"
+                  >
+                    ĐÓNG PHÒNG
+                  </Button>
+                </div>
+              </CardContent>
             </motion.div>
           </div>
         )}

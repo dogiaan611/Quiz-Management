@@ -74,7 +74,8 @@ export default function QuizPinPage() {
   // PIN CHANGE
   //--------------------------------
   const handlePinChange = (e) => {
-    const value = e.target.value.replace(/[^0-9]/g, "");
+    // Cho phép cả chữ và số, tối đa 6 ký tự, tự động viết hoa
+    const value = e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
 
     setPin(value);
     setError("");

@@ -259,15 +259,27 @@ const deleteQuestion = async (req, res) => {
 /**
  * Lấy tất cả câu hỏi của User (Ngân hàng câu hỏi cá nhân)
  */
+/**
+ * Lấy tất cả câu hỏi (Ngân hàng câu hỏi - Lọc theo Role)
+ */
 const getAllQuestions = async (req, res) => {
     try {
-        const created_by = req.user.id;
-        const questions = await Question.find({ created_by })
+        const user = req.user;
+        let query = {};
+
+        // Nếu là giáo viên, chỉ lấy những câu mình tạo
+        if (user && user.role === 'teacher') {
+            query.created_by = user.id;
+        }
+        // Nếu là admin, query = {} sẽ lấy tất cả
+
+        const questions = await Question.find(query)
             .populate("answers")
             .sort({ createdAt: -1 });
 
         return res.status(200).json({ questions });
     } catch (error) {
+        console.error("Get all questions error:", error);
         return res.status(500).json({ message: "Lỗi lấy ngân hàng câu hỏi." });
     }
 };

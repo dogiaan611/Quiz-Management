@@ -17,8 +17,8 @@ const { authenticate, authorize, optionalAuthenticate } = require("../middleware
 
 const router = express.Router();
 
-// 🔹 Lấy tất cả quiz
-router.get("/", getAllQuizzes);
+// 🔹 Lấy tất cả quiz (Yêu cầu đăng nhập để lọc theo role)
+router.get("/", authenticate, getAllQuizzes);
 
 // 🔹 Lấy chi tiết quiz
 router.get("/:quizId", optionalAuthenticate, getQuizById);

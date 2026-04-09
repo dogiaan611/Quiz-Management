@@ -14,6 +14,8 @@ export default function AdminLayout() {
 
   const [openProfile, setOpenProfile] = useState(false);
 
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
   const menu = [
     { name: "Quiz", path: "/admin/quizzes", icon: <FileText size={18} /> },
     { name: "Câu hỏi", path: "/admin/questions", icon: <HelpCircle size={18} /> },
@@ -21,6 +23,7 @@ export default function AdminLayout() {
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     window.location.href = "/login";
   };
 
@@ -36,7 +39,9 @@ export default function AdminLayout() {
               <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
                 <FileText size={20} className="text-white" />
               </div>
-              <span className="text-xl font-black tracking-tighter uppercase italic">Quiz Admin</span>
+              <span className="text-xl font-black tracking-tighter uppercase italic">
+                {user.role === 'admin' ? 'Quiz Admin' : 'Teacher Panel'}
+              </span>
             </div>
           </div>
 
@@ -86,8 +91,15 @@ export default function AdminLayout() {
 
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">A</div>
-              <span className="text-sm font-bold text-slate-700">Admin</span>
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-[10px] uppercase">
+                {user.role?.[0] || 'U'}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-black text-slate-700 leading-tight">{user.name || user.username}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  {user.role === 'admin' ? 'Quản trị viên' : 'Giáo viên'}
+                </span>
+              </div>
             </div>
           </div>
         </header>

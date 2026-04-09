@@ -27,91 +27,142 @@ export default function QuizPlay() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTimeUp, setIsTimeUp] = useState(false); // Task 75: Kiểm tra hết giờ
 
+  const [lobbyParticipants, setLobbyParticipants] = useState([]);
+  const [isHostStarted, setIsHostStarted] = useState(false);
+
+  // 🛡️ DÙNG REF ĐỂ TRÁNH STALE CLOSURE KHI SOCKET GỌI HÀM
+  const answersRef = useRef({});
+  const quizRef = useRef(null);
+  const userRef = useRef(null);
+
+  useEffect(() => { answersRef.current = answers; }, [answers]);
+  useEffect(() => { quizRef.current = quiz; }, [quiz]);
+  useEffect(() => { userRef.current = user; }, [user]);
+
   /* =============================
-        1. LOAD USER & AUTH
+        1. INITIALIZE USER & DATA
   ============================== */
   useEffect(() => {
-    // Ưu tiên lấy quizUser (dành cho học sinh vào bằng mã PIN) trước, sau đó mới đến user (tài khoản đã đăng nhập)
-    const guestUser = sessionStorage.getItem("quizUser");
-    const loggedInUser = sessionStorage.getItem("user") || localStorage.getItem("user");
+    const guestUser = JSON.parse(sessionStorage.getItem("quizUser"));
+    const loggedInUser = JSON.parse(localStorage.getItem("user"));
     
-    const storedUser = guestUser || loggedInUser;
+    // Nếu là Admin hoặc Giáo viên: Được vào thẳng
+    // Nếu là Học sinh: BẮT BUỘC phải có guestUser (tức là đã qua bước nhập mã PIN)
+    const isPowerUser = loggedInUser && (loggedInUser.role === 'admin' || loggedInUser.role === 'teacher');
+    const activeUser = isPowerUser ? loggedInUser : guestUser;
 
-    if (!storedUser) {
-      navigate("/join"); // Nếu không có thông tin người dùng, về trang nhập mã
+    if (!activeUser) {
+      navigate("/join");
       return;
     }
-    setUser(JSON.parse(storedUser));
-  }, [navigate]);
+    setUser(activeUser);
 
-  /* =============================
-        2. CONNECT SOCKET & JOIN ROOM
-  ============================== */
-  useEffect(() => {
-    if (!id || !user) return;
-
-    // Tạo định danh duy nhất cho user (ID nếu đã login, hoặc dùng PIN + Tên nếu là guest)
-    const userId = user.id || user._id || `${user.pin}_${user.name}`;
-
+    // KẾT NỐI SOCKET
     socket.connect();
-    socket.emit("joinQuiz", { quizId: id, userId });
-    socket.emit("startQuiz", { quizId: id, userId });
 
-    // Lắng nghe cập nhật thời gian từ server
-    socket.on("timerUpdate", (time) => {
-      setTimeLeft(time);
-      if (time > 0) setIsTimeUp(false);
-    });
-
-    // Task 75: Lắng nghe tín hiệu kết thúc
-    socket.on("timerFinished", () => {
-      setTimeLeft(0);
-      setIsTimeUp(true);
-      handleSubmit(true); 
-    });
-
-    return () => {
-      socket.off("timerUpdate");
-      socket.off("timerFinished");
-      socket.disconnect();
-    };
-  }, [id, user]);
-
-  /* =============================
-        3. FETCH QUIZ DATA
-  ============================== */
-  useEffect(() => {
     const fetchQuizData = async () => {
-      if (!user || !id) return;
-
       try {
         setLoading(true);
-        setError(null);
-
         const { data } = await getQuizById(id);
-        setQuiz(data.quiz);
+        const quizData = data.quiz;
+        setQuiz(quizData);
 
-        // Khôi phục câu trả lời cũ nếu có
-        const savedAnswers = localStorage.getItem(`quizAnswers_${id}`);
-        if (savedAnswers) {
-          setAnswers(JSON.parse(savedAnswers));
+        // 🛡️ BẢO MẬT: Kiểm tra mã PIN (Chỉ áp dụng cho người dùng không phải Admin/Teacher)
+        if (!isPowerUser) {
+            if (!activeUser.pin || activeUser.pin !== quizData.access_code) {
+                sessionStorage.removeItem("quizUser");
+                navigate("/join");
+                return;
+            }
         }
 
-        setLoading(false);
+        // JOIN LOBBY
+        socket.emit("joinLobby", { 
+          quizId: id, 
+          user: { 
+            id: activeUser.id || activeUser._id || `guest_${activeUser.pin}_${activeUser.name}`, 
+            name: activeUser.name || activeUser.username
+          } 
+        });
+
       } catch (err) {
         console.error("Error fetching quiz:", err);
-        setError("Không thể tải bài thi. Vui lòng kiểm tra lại kết nối.");
+        setError(err.response?.data?.message || "Không tìm thấy quiz");
+      } finally {
         setLoading(false);
       }
     };
 
     fetchQuizData();
-  }, [user, id]);
+
+    // SOCKET LISTENERS
+    socket.on("lobbyUpdate", (participants) => {
+      setLobbyParticipants(participants);
+    });
+
+    socket.on("quizStartedByHost", () => {
+      setIsHostStarted(true);
+      socket.emit("joinQuizRoom", { quizId: id });
+    });
+
+    socket.on("timerUpdate", (remainingTime) => {
+      setTimeLeft(remainingTime);
+      if (remainingTime <= 0) setIsTimeUp(true);
+    });
+
+    socket.on("timerFinished", () => {
+      console.log("⏰ Hết giờ! Hệ thống đang tự động nộp bài...");
+      setIsTimeUp(true);
+      handleAutoSubmit(); 
+    });
+
+    return () => {
+      socket.off("lobbyUpdate");
+      socket.off("quizStartedByHost");
+      socket.off("timerUpdate");
+      socket.off("timerFinished");
+      socket.disconnect();
+    };
+  }, [id, navigate]);
+
+  // 🤖 HÀM TỰ ĐỘNG NỘP BÀI (Sử dụng Ref để có data mới nhất)
+  const handleAutoSubmit = async () => {
+    if (isSubmitting) return; // Không check isTimeUp ở đây
+    setIsSubmitting(true);
+    
+    try {
+      const currentAnswers = answersRef.current;
+      const currentQuiz = quizRef.current;
+      const currentUser = userRef.current;
+      
+      if (!currentQuiz) return;
+
+      const formattedAnswers = Object.entries(currentAnswers).map(([qIdx, aIdx]) => ({
+        question_id: currentQuiz.questions[qIdx]._id,
+        answer_id: currentQuiz.questions[qIdx].answers[aIdx]._id
+      }));
+
+      const { data } = await submitQuiz(id, formattedAnswers);
+      
+      navigate("/result", { 
+        state: { 
+          result: data.result,
+          quizTitle: currentQuiz.title,
+          userName: currentUser?.name || currentUser?.username || "Thí sinh"
+        } 
+      });
+    } catch (err) {
+      console.error("Lỗi tự động nộp bài:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   /* =============================
         4. SELECT ANSWER
   ============================== */
   const selectAnswer = (answerIndex) => {
+    if (isTimeUp || isSubmitting) return; // Khóa chọn đáp án khi hết giờ
     const newAnswers = {
       ...answers,
       [currentQuestion]: answerIndex,
@@ -124,7 +175,7 @@ export default function QuizPlay() {
         5. SUBMIT HANDLER
   ============================== */
   const handleSubmit = async (auto = false) => {
-    if (isSubmitting) return; // Tránh nộp 2 lần
+    if (isSubmitting || (isTimeUp && !auto)) return; // Khóa nộp bài thủ công khi hết giờ
     
     setIsSubmitting(true);
     setConfirmSubmit(false);
@@ -218,6 +269,81 @@ export default function QuizPlay() {
     );
   }
 
+  // 🚪 RỜI PHÒNG CHỜ
+  const handleLeaveLobby = () => {
+    if (window.confirm("Bạn có chắc muốn rời phòng chờ và nhập lại thông tin không?")) {
+        // Báo cho server xoá mình khỏi danh sách
+        socket.emit("leaveLobby", { 
+            quizId: id, 
+            userId: user.id || user._id || `guest_${user.pin}_${user.name}` 
+        });
+        
+        sessionStorage.removeItem("quizUser");
+        navigate("/join");
+    }
+  };
+
+  if (!isHostStarted) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-900/40 via-slate-900 to-slate-900">
+        <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-2xl"
+        >
+          <Card className="bg-white/5 backdrop-blur-2xl border-white/10 shadow-2xl rounded-[3rem] overflow-hidden text-center">
+            <div className="p-12 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-12 opacity-5 rotate-12">
+                    <Clock size={200} className="text-white" />
+                </div>
+                
+                <div className="w-20 h-20 bg-indigo-500/20 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-indigo-500/10">
+                    <Loader size={32} className="text-indigo-400 animate-spin" />
+                </div>
+
+                <h2 className="text-4xl font-black text-white mb-2 italic tracking-tight">{quiz.title}</h2>
+                <p className="text-indigo-300 font-bold uppercase tracking-[0.3em] text-[10px] mb-12">Đang chờ giáo viên bắt đầu bài thi...</p>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-12">
+                   {lobbyParticipants.map((p, idx) => (
+                       <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        key={idx} 
+                        className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-3 overflow-hidden"
+                       >
+                           <div className="w-8 h-8 rounded-lg bg-indigo-500/40 flex items-center justify-center text-xs font-bold text-white uppercase italic">
+                               {p.name?.[0]}
+                           </div>
+                           <span className="text-slate-300 font-bold text-sm truncate">{p.name}</span>
+                       </motion.div>
+                   ))}
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8 border-t border-white/5">
+                    <div className="flex items-center gap-2 text-slate-400 px-6 font-bold text-sm uppercase tracking-widest italic">
+                        <Loader size={16} className="animate-spin" />
+                        Đang chuẩn bị...
+                    </div>
+                    <button 
+                        onClick={handleLeaveLobby}
+                        className="px-10 py-5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-2xl text-rose-400 font-black text-xs transition-all active:scale-95 uppercase tracking-widest italic"
+                    >
+                        Rời phòng chờ
+                    </button>
+                </div>
+            </div>
+          </Card>
+
+          <p className="text-center text-slate-500 mt-8 font-bold text-xs uppercase tracking-[0.2em] animate-pulse">
+             {lobbyParticipants.length} BẠN ĐANG TRONG PHÒNG
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
   const question = quiz.questions[currentQuestion];
   const answeredCount = Object.keys(answers).length;
   const progress = (answeredCount / quiz.questions.length) * 100;
@@ -267,7 +393,7 @@ export default function QuizPlay() {
         <Button 
           className="mt-auto bg-indigo-600 hover:bg-indigo-700 text-white py-6 rounded-xl font-bold shadow-lg shadow-indigo-100 dark:shadow-none"
           onClick={() => setConfirmSubmit(true)}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isTimeUp}
         >
           <Flag size={20} className="mr-2" />
           Nộp bài ngay

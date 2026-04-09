@@ -93,14 +93,27 @@ const addQuestionsToQuiz = async (req, res) => {
 };
 
 /**
- * Lấy tất cả quiz
+ * Lấy tất cả quiz (Lọc theo Role)
  */
 const getAllQuizzes = async (req, res) => {
     try {
-        const quizzes = await Quiz.find().populate("created_by", "username email");
+        const user = req.user;
+        let query = {};
+
+        // Nếu là giáo viên, chỉ lấy những bài do mình tạo
+        if (user && user.role === 'teacher') {
+            query.created_by = user.id;
+        }
+        // Nếu là admin, query = {} sẽ lấy tất cả
+
+        const quizzes = await Quiz.find(query)
+            .populate("created_by", "username email name")
+            .sort({ createdAt: -1 });
+
         return res.status(200).json({ quizzes });
     } catch (error) {
-        return res.status(500).json({ message: "Lỗi server" });
+        console.error("Get all quizzes error:", error);
+        return res.status(500).json({ message: "Lỗi server khi lấy danh sách bài thi" });
     }
 };
 
